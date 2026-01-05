@@ -76,11 +76,13 @@
             h('line', { key: 'l2', x1: '12', y1: '16', x2: '12.01', y2: '16' })
         ]);
 
-                        // COMPLETE PROFESSIONAL DATABASE v4.5
+                        // PWA v4.6: Photo Embedding Fix
         // 126 plants total (95 Idaho natives + 31 premium adapted/cultivars)
         // 78 plants with scientific names (62% coverage)
         // 6 genera with detailed care calendars (Artemisia, Pinus, Aquilegia, Rosa, Cercocarpus, Eriogonum)
         // 
+        // v4.6 UPDATE: Photos now embed as actual images in PDF reports (not just text references)
+        //
         // NATIVE PROBLEM-SOLVERS (35 strategic additions): Screening (Ninebark, Blue Elderberry), 
         //   Shade Trees (Blue Spruce, Western White Pine), Native Grasses (Idaho Fescue, Bluebunch Wheatgrass),
         //   Foundation Shrubs (Winterfat, Bitter Cherry), Perennials (Penstemon, Wild Blue Flax)
@@ -857,20 +859,67 @@
                         y += 5;
                     });
                     
-                    // Photos page
+                    // Photos page - SPRINT 3.5: Embed actual images in PDF
                     if (photos.length > 0) {
                         doc.addPage();
-                        doc.setFontSize(14);
+                        doc.setFontSize(16);
+                        doc.setTextColor(34, 139, 34);
+                        doc.setFont(undefined, 'bold');
                         doc.text('Photo Documentation', 20, 20);
-                        doc.setFontSize(10);
-                        let photoY = 30;
+                        doc.setFont(undefined, 'normal');
+                        doc.setTextColor(0, 0, 0);
+                        
+                        let photoY = 35;
                         photos.forEach((photo, idx) => {
-                            if (photoY > 250) {
+                            // Check if new page needed (image + caption needs ~130mm space)
+                            if (photoY > 160) {
                                 doc.addPage();
                                 photoY = 20;
                             }
-                            doc.text(`Photo ${idx + 1}: ${photo.location}`, 20, photoY);
-                            photoY += 5;
+                            
+                            // Photo location/caption
+                            doc.setFontSize(12);
+                            doc.setTextColor(34, 139, 34);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`${photo.location}`, 20, photoY);
+                            photoY += 6;
+                            doc.setFont(undefined, 'normal');
+                            doc.setTextColor(0, 0, 0);
+                            
+                            // Photo notes if any
+                            if (photo.notes) {
+                                doc.setFontSize(9);
+                                doc.setTextColor(100, 100, 100);
+                                const noteLines = doc.splitTextToSize(photo.notes, 170);
+                                noteLines.forEach(line => {
+                                    doc.text(line, 20, photoY);
+                                    photoY += 4;
+                                });
+                                photoY += 3;
+                            }
+                            
+                            // EMBED THE ACTUAL IMAGE
+                            try {
+                                // Photo data is stored as data URL: "data:image/jpeg;base64,..."
+                                const imgData = photo.data;
+                                
+                                // Calculate dimensions to fit on page
+                                // Max dimensions in mm (leave margins)
+                                const maxWidth = 170;
+                                const maxHeight = 110;
+                                
+                                // Add image to PDF at current Y position
+                                doc.addImage(imgData, 'JPEG', 20, photoY, maxWidth, maxHeight);
+                                photoY += maxHeight + 12;
+                                
+                            } catch (err) {
+                                // Fallback if image fails to embed
+                                doc.setFontSize(9);
+                                doc.setTextColor(200, 0, 0);
+                                doc.text('[Image could not be embedded - Error: ' + err.message + ']', 20, photoY);
+                                photoY += 10;
+                                console.error('Photo embedding error:', err);
+                            }
                         });
                     }
                     
