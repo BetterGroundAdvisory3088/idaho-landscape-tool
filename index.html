@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Landscape Assessment">
+    <meta name="theme-color" content="#16a34a">
+    <title>Idaho Landscaping Assessment Tool v4.3</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 9999;
+        }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            border-top: 4px solid white; width: 50px; height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="loader"></div>
+        <h2 style="margin-top: 2rem; font-size: 1.5rem; font-weight: bold;">Loading Assessment Tool...</h2>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9;">v4.3 - Sprint 3: Genus-Based Care Intelligence ✓</p>
+    </div>
+    <div id="root"></div>
+
+    <script>
+        const { useState, useEffect, useRef, createElement: h } = React;
+        
+        // Icons
+        const Camera = ({ size = 24 }) => h('svg', { 
+            width: size, height: size, viewBox: '0 0 24 24', fill: 'none', 
+            stroke: 'currentColor', strokeWidth: '2', style: { display: 'inline-block', verticalAlign: 'middle' }
+        }, [
+            h('path', { key: 'p1', d: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z' }),
+            h('circle', { key: 'c1', cx: '12', cy: '13', r: '4' })
+        ]);
+        
+        const Plus = ({ size = 20 }) => h('svg', {
+            width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+            stroke: 'currentColor', strokeWidth: '2', style: { display: 'inline-block', verticalAlign: 'middle' }
+        }, [
+            h('line', { key: 'l1', x1: '12', y1: '5', x2: '12', y2: '19' }),
+            h('line', { key: 'l2', x1: '5', y1: '12', x2: '19', y2: '12' })
+        ]);
+
+        const Download = ({ size = 20 }) => h('svg', {
+            width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+            stroke: 'currentColor', strokeWidth: '2', style: { display: 'inline-block', verticalAlign: 'middle' }
+        }, [
+            h('path', { key: 'p1', d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+            h('polyline', { key: 'p2', points: '7 10 12 15 17 10' }),
+            h('line', { key: 'l1', x1: '12', y1: '15', x2: '12', y2: '3' })
+        ]);
+
+        const AlertCircle = ({ size = 20 }) => h('svg', {
+            width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+            stroke: 'currentColor', strokeWidth: '2', style: { display: 'inline-block', verticalAlign: 'middle' }
+        }, [
+            h('circle', { key: 'c1', cx: '12', cy: '12', r: '10' }),
+            h('line', { key: 'l1', x1: '12', y1: '8', x2: '12', y2: '12' }),
+            h('line', { key: 'l2', x1: '12', y1: '16', x2: '12.01', y2: '16' })
+        ]);
+
+                        // COMPLETE PROFESSIONAL DATABASE v4.5
+        // 126 plants total (95 Idaho natives + 31 premium adapted/cultivars)
+        // 78 plants with scientific names (62% coverage)
+        // 6 genera with detailed care calendars (Artemisia, Pinus, Aquilegia, Rosa, Cercocarpus, Eriogonum)
+        // 
+        // NATIVE PROBLEM-SOLVERS (35 strategic additions): Screening (Ninebark, Blue Elderberry), 
+        //   Shade Trees (Blue Spruce, Western White Pine), Native Grasses (Idaho Fescue, Bluebunch Wheatgrass),
+        //   Foundation Shrubs (Winterfat, Bitter Cherry), Perennials (Penstemon, Wild Blue Flax)
+        //
+        // PREMIUM SHOWSTOPPERS (12 ornamental additions): Japanese Maples (Bloodgood, Emperor I),
+        //   Specialty Conifers (Chief Joseph Pine, Weeping Blue Atlas Cedar), Flowering Trees (Chanticleer Pear),
+        //   Fast Shade (Autumn Blaze Maple, Cimmaron Ash), Year-Round Interest (Cardinal Royal Mt. Ash)
+        const PLANTS = {
+            'Antelope Bitterbrush': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Purshia tridentata' },
+            'Apache Plume': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Fallugia paradoxa' },
+            'Arborvitae': { native: false, type: 'Evergreen Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3-6' },
+            'Arrowleaf Balsamroot': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Balsamorhiza sagittata' },
+            'Autumn Blaze Maple': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun', zone: '3-8', scientificName: 'Acer × freemanii \"Jeffersred\"' },
+            'Bearberry (Kinnikinnick)': { native: true, type: 'Evergreen Groundcover', water: 'Low', sun: 'Partial shade', zone: '2-6' },
+            'Big Sagebrush': { native: true, type: 'Evergreen Shrub', water: 'Low', sun: 'Full sun', zone: '5', scientificName: 'Artemisia tridentata' },
+            'Big-tooth Maple': { native: true, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Acer grandidentatum' },
+            'Bigtooth Maple': { native: true, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4-6' },
+            'Birch-leaf Mt Mahogany': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Cercocarpus montanus' },
+            'Bitter Cherry': { native: true, type: 'Deciduous Shrub', water: 'Low to moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Prunus emarginata' },
+            'Bitterbrush': { native: true, type: 'Deciduous Shrub', water: 'Very low', sun: 'Full sun', zone: '4-6' },
+            'Black Cottonwood': { native: true, type: 'Deciduous Tree', water: 'Moderate to high', sun: 'Full sun', zone: '3', scientificName: 'Populus trichocarpa' },
+            'Black-eyed Susan': { native: false, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '3-6' },
+            'Blanket Flower': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '2', scientificName: 'Gaillardia aristata' },
+            'Bloodgood Japanese Maple': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '5-9', scientificName: 'Acer palmatum \"Bloodgood\"' },
+            'Blue Camas': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Camassia quamash' },
+            'Blue Elderberry': { native: true, type: 'Deciduous Shrub', water: 'Moderate to high', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Sambucus caerulea' },
+            'Blue Fescue': { native: false, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '4-6' },
+            'Blue Grama': { native: true, type: 'Ornamental Grass', water: 'Very low', sun: 'Full sun', zone: '3', scientificName: 'Bouteloua gracilis' },
+            'Blue Spruce': { native: true, type: 'Evergreen Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Picea pungens' },
+            'Bluebunch Wheatgrass': { native: true, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Pseudoroegneria spicata' },
+            'Bottlebrush Squirreltail': { native: true, type: 'Ornamental Grass', water: 'Very low', sun: 'Full sun', zone: '3', scientificName: 'Elymus elymoides' },
+            'Boxwood': { native: false, type: 'Evergreen Shrub', water: 'Moderate', sun: 'Partial shade', zone: '5-6' },
+            'Bristlecone Pine': { native: true, type: 'Evergreen Tree', water: 'Low', sun: 'Full sun', zone: '4-6' },
+            'Buffalograss': { native: true, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Buchloe dactyloides' },
+            'Capital Flowering Pear': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun', zone: '5-9', scientificName: 'Pyrus calleryana \"Capital\"' },
+            'Cardinal Royal Mountain Ash': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3-6', scientificName: 'Sorbus aucuparia \"Cardinal Royal\"' },
+            'Chanticleer Flowering Pear': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun', zone: '4-8', scientificName: 'Pyrus calleryana \"Chanticleer\"' },
+            'Chief Joseph Lodgepole Pine': { native: false, type: 'Evergreen Conifer', water: 'Low to moderate', sun: 'Full sun', zone: '5-8', scientificName: 'Pinus contorta \"Chief Joseph\"' },
+            'Chokecherry': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun', zone: '2-6' },
+            'Cimmaron Ash': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun', zone: '3-7', scientificName: 'Fraxinus pennsylvanica \"Cimmaron\"' },
+            'Colorado Blue Columbine': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Partial shade', zone: '2', scientificName: 'Aquilegia caerulea' },
+            'Coneflower (Echinacea)': { native: false, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '3-6' },
+            'Creeping Oregon Grape': { native: true, type: 'Evergreen Groundcover', water: 'Low', sun: 'Partial shade to shade', zone: '5-6' },
+            'Curl-leaf Mountain Mahogany': { native: true, type: 'Evergreen Shrub', water: 'Low', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Cercocarpus ledifolius' },
+            'Cut-leaf Daisy': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Erigeron compositus' },
+            'Daylily': { native: false, type: 'Perennial', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3-6' },
+            'Desert Fernbush': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '5-6' },
+            'Desert Globemallow': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '6', scientificName: 'Sphaeralcea ambigua' },
+            'Douglas Fir': { native: true, type: 'Evergreen Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4-6' },
+            'Douglas Hawthorn': { native: true, type: 'Small Tree', water: 'Moderate', sun: 'Full sun', zone: '4-6' },
+            'Emperor I Japanese Maple': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '5-9', scientificName: 'Acer palmatum \"Wolff\"' },
+            'Engelmann Spruce': { native: true, type: 'Evergreen Tree', water: 'Moderate', sun: 'Full sun', zone: '2-6' },
+            'Fat Albert Blue Spruce': { native: false, type: 'Evergreen Conifer', water: 'Moderate', sun: 'Full sun', zone: '2-8', scientificName: 'Picea pungens \"Fat Albert\"' },
+            'Fern Bush': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Chamaebatiaria millefolium' },
+            'Forsythia': { native: false, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun', zone: '5-6' },
+            'Four-wing Saltbush': { native: true, type: 'Evergreen Shrub', water: 'Very low', sun: 'Full sun', zone: '4', scientificName: 'Atriplex canescens' },
+            'Fringed Sagebrush': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Artemisia frigida' },
+            'Golden Currant': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4-6' },
+            'Goldenrod': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Full sun', zone: '1', scientificName: 'Solidago spp.' },
+            'Great Basin Wildrye': { native: true, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Leymus cinereus' },
+            'Green Rabbitbrush': { native: true, type: 'Evergreen Shrub', water: 'Very low', sun: 'Full sun', zone: '3', scientificName: 'Chrysothamnus viscidiflorus' },
+            'Greenleaf Manzanita': { native: true, type: 'Evergreen Shrub', water: 'Low', sun: 'Full sun to partial shade', zone: '5-6' },
+            'Hosta': { native: false, type: 'Perennial', water: 'Moderate to high', sun: 'Shade to partial shade', zone: '3-6' },
+            'Hydrangea': { native: false, type: 'Deciduous Shrub', water: 'Moderate to high', sun: 'Partial shade', zone: '5-6' },
+            'Idaho Fescue': { native: true, type: 'Ornamental Grass', water: 'Low to moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Festuca idahoensis' },
+            'Indian Ricegrass': { native: true, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '4-5', scientificName: 'Oryzopsis hymenoides' },
+            'Japanese Maple': { native: false, type: 'Deciduous Tree', water: 'Moderate', sun: 'Partial shade', zone: '5-6' },
+            'Karl Foerster Feather Reed Grass': { native: false, type: 'Ornamental Grass', water: 'Moderate', sun: 'Full sun to partial shade', zone: '5-6' },
+            'Kinnikinnick': { native: true, type: 'Evergreen Groundcover', water: 'Low', sun: 'Full sun to partial shade', zone: '1', scientificName: 'Arctostaphylos uva-ursi' },
+            'Lavender': { native: false, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '5-6' },
+            'Lilac': { native: false, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun', zone: '3-6' },
+            'Limber Pine': { native: true, type: 'Evergreen Tree', water: 'Moderate', sun: 'Full sun', zone: '3-6' },
+            'Little Bluestem': { native: true, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Andropogon scoparium' },
+            'Louisiana Sage': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '5', scientificName: 'Artemisia ludoviciana' },
+            'Maiden Grass': { native: false, type: 'Ornamental Grass', water: 'Moderate', sun: 'Full sun', zone: '5-6' },
+            'Missouri Evening Primrose': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '4', scientificName: 'Oenothera missouriensis' },
+            'Mormon Tea': { native: true, type: 'Evergreen Shrub', water: 'Very low', sun: 'Full sun', zone: '5', scientificName: 'Ephedra viridis' },
+            'Mountain Mahogany': { native: true, type: 'Evergreen Shrub', water: 'Very low', sun: 'Full sun', zone: '4-6' },
+            'Narrowleaf Yucca': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Yucca glauca' },
+            'Netleaf Hackberry': { native: true, type: 'Deciduous Tree', water: 'Low', sun: 'Full sun', zone: '5-6' },
+            'Ninebark': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Physocarpus malvaceus' },
+            'Oakleaf Sumac': { native: true, type: 'Deciduous Shrub', water: 'Low to moderate', sun: 'Full sun', zone: '3', scientificName: 'Rhus trilobata' },
+            'Ocean Spray': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '5-6' },
+            'Parry\'s Agave': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Agave parryi' },
+            'Pearly Everlasting': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Anaphalis margaritacea' },
+            'Penstemon': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '2-5', scientificName: 'Penstemon spp.' },
+            'Pinyon Pine': { native: true, type: 'Evergreen Tree', water: 'Very low', sun: 'Full sun', zone: '5-6' },
+            'Ponderosa Pine': { native: true, type: 'Evergreen Tree', water: 'Moderate', sun: 'Full sun', zone: '3-6' },
+            'Potentilla': { native: false, type: 'Deciduous Shrub', water: 'Low to moderate', sun: 'Full sun', zone: '2-6' },
+            'Prairie Smoke': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Full sun', zone: '2', scientificName: 'Geum triflorum' },
+            'Prickly Pear Cactus': { native: true, type: 'Succulent', water: 'Very low', sun: 'Full sun', zone: '5', scientificName: 'Opuntia spp.' },
+            'Prince\'s Plume': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Stanleya pinnata' },
+            'Purple Coneflower': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '3', scientificName: 'Echinacea purpurea' },
+            'Pussytoes': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun to partial shade', zone: '2', scientificName: 'Antennaria spp.' },
+            'Quaking Aspen': { native: true, type: 'Deciduous Tree', water: 'Moderate to high', sun: 'Full sun', zone: '1-6' },
+            'Red-flowering Currant': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Ribes sanguineum' },
+            'Red-osier Dogwood': { native: true, type: 'Deciduous Shrub', water: 'Moderate to high', sun: 'Full sun to partial shade', zone: '2', scientificName: 'Cornus stolonifera' },
+            'Redstem Ceanothus': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '5-6' },
+            'Rocky Mountain Ash': { native: true, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Sorbus scopulina' },
+            'Rocky Mountain Juniper': { native: true, type: 'Evergreen Tree', water: 'Low', sun: 'Full sun', zone: '3-6' },
+            'Rocky Mountain Maple': { native: true, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4-6' },
+            'Rubber Rabbitbrush': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4-6' },
+            'Russet Buffaloberry': { native: true, type: 'Deciduous Shrub', water: 'Low to moderate', sun: 'Full sun to partial shade', zone: '2', scientificName: 'Shepherdia canadensis' },
+            'Russian Sage': { native: false, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '4-6' },
+            'Sand Dropseed': { native: true, type: 'Ornamental Grass', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Sporobolus cryptandrus' },
+            'Saskatoon Serviceberry': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4', scientificName: 'Amelanchier alnifolia' },
+            'Sedum': { native: false, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '3-6' },
+            'Serviceberry': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '2-6' },
+            'Shademaster Honeylocust': { native: false, type: 'Deciduous Tree', water: 'Low to moderate', sun: 'Full sun', zone: '5-8', scientificName: 'Gleditsia triacanthos \"Shademaster\"' },
+            'Shrubby Cinquefoil': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Potentilla fruticosa' },
+            'Silver Buffaloberry': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '2-6' },
+            'Silver Sagebrush': { native: true, type: 'Evergreen Shrub', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Artemisia cana' },
+            'Smooth Sumac': { native: true, type: 'Deciduous Shrub', water: 'Low to moderate', sun: 'Full sun', zone: '4', scientificName: 'Rhus glabra' },
+            'Snow Buckwheat': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Eriogonum niveum' },
+            'Snowberry': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Partial shade', zone: '3-6' },
+            'Spirea': { native: false, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun', zone: '3-6' },
+            'Sticky Geranium': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun to partial shade', zone: '2', scientificName: 'Geranium viscosissimum' },
+            'Sulfur Buckwheat': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '3-9', scientificName: 'Eriogonum umbellatum' },
+            'Sunburst Honeylocust': { native: false, type: 'Deciduous Tree', water: 'Low to moderate', sun: 'Full sun', zone: '3-8', scientificName: 'Gleditsia triacanthos \"Sunburst\"' },
+            'Syringa (Mock Orange)': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4-6' },
+            'Water Birch': { native: true, type: 'Deciduous Tree', water: 'Moderate to high', sun: 'Full sun to partial shade', zone: '3-6' },
+            'Weeping Blue Atlas Cedar': { native: false, type: 'Evergreen Conifer', water: 'Moderate', sun: 'Full sun to partial shade', zone: '6-7', scientificName: 'Cedrus atlantica \"Glauca Pendula\"' },
+            'Weigela': { native: false, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '4-6' },
+            'Western Columbine': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Partial shade', zone: '3', scientificName: 'Aquilegia formosa' },
+            'Western Juniper': { native: true, type: 'Evergreen Tree', water: 'Low to moderate', sun: 'Full sun', zone: '5', scientificName: 'Juniperus occidentalis' },
+            'Western Larch': { native: true, type: 'Deciduous Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Larix occidentalis' },
+            'Western White Pine': { native: true, type: 'Evergreen Tree', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3', scientificName: 'Pinus monticola' },
+            'Western Yarrow': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Achillea millefolium' },
+            'Wild Aster': { native: true, type: 'Perennial', water: 'Moderate', sun: 'Full sun', zone: '4', scientificName: 'Aster spp.' },
+            'Wild Blue Flax': { native: true, type: 'Perennial', water: 'Low to moderate', sun: 'Full sun', zone: '4', scientificName: 'Linum perenne' },
+            'Winterfat': { native: true, type: 'Evergreen Shrub', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Krascheninnikovia lanata' },
+            'Woods Rose': { native: true, type: 'Deciduous Shrub', water: 'Moderate', sun: 'Full sun to partial shade', zone: '3-6' },
+            'Woolly Sunflower': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '3', scientificName: 'Eriophyllum lanatum' },
+            'Wyeth Buckwheat': { native: true, type: 'Perennial', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Eriogonum heracleoides' }
+        };
+
+        // SPRINT 3: GENUS-BASED CARE INTELLIGENCE DATABASE
+        // Compiled from University Extension, USDA, and authoritative botanical sources
+        const GENUS_CARE = {
+            'Artemisia': {
+                common: 'Sagebrush',
+                prune: 'Late winter/early spring: light shearing. Avoid heavy pruning.',
+                water: 'Very low once established. Overwatering is #1 killer in Treasure Valley.',
+                fertilize: 'None needed',
+                issues: 'Root rot from overwatering. Ensure excellent drainage.',
+                idaho: 'Essential wildlife plant. No supplemental water after year 1 except July-Aug heat.'
+            },
+            'Pinus': {
+                common: 'Pine',
+                prune: 'Oct-Jan ONLY (winter). Never prune spring-fall (attracts pitch moths).',
+                water: 'Low-moderate once established. Deep soak first year.',
+                fertilize: 'Bonemeal at planting. None after established.',
+                issues: 'Pitch moths (prune Oct-Jan only). White pine blister rust on Limber Pine.',
+                idaho: 'Ponderosa self-prunes naturally. Pinyon very slow-growing.'
+            },
+            'Aquilegia': {
+                common: 'Columbine',
+                prune: 'Deadhead for rebloom. Cut foliage to ground in late winter. Avoid fall pruning.',
+                water: 'Moderate moisture. Top 1-2" dry between waterings. Avoid crown rot.',
+                fertilize: 'Balanced 10-10-10 in early spring, once yearly',
+                issues: 'Leaf miners (cosmetic). Cut back affected foliage for fresh growth.',
+                idaho: 'Short-lived (2-4 yrs) but self-seeds. Attracts hummingbirds. Prefers dappled shade.'
+            },
+            'Rosa': {
+                common: 'Woods Rose',
+                prune: 'Late winter after hard freeze. Control spread and maintain height.',
+                water: 'Drought tolerant after year 1. Deep roots (3-6 ft).',
+                fertilize: 'None needed for native Woods Rose',
+                issues: 'Few problems. Deer resistant.',
+                idaho: 'ID native, extremely cold-hardy. Fragrant pink flowers, vitamin C-rich hips for wildlife.'
+            },
+            'Cercocarpus': {
+                common: 'Mountain Mahogany',
+                prune: 'Minimal - remove dead wood only',
+                water: 'Very low. Extremely drought tolerant. Deep tap root.',
+                fertilize: 'None',
+                issues: 'Very hardy, few problems',
+                idaho: 'Nitrogen-fixing. One of most drought-tolerant ID natives.'
+            },
+            'Eriogonum': {
+                common: 'Buckwheat',
+                prune: 'Cut back dead flower stems late winter/early spring',
+                water: 'Low. Very drought tolerant. Avoid overwatering.',
+                fertilize: 'None',
+                issues: 'Root rot if overwatered. Needs excellent drainage.',
+                idaho: 'Important pollinator plant. High desert native.'
+            }
+        };
+
+        const LOCATIONS = [
+            'Front Yard - North', 'Front Yard - East', 'Front Yard - South', 'Front Yard - West',
+            'Backyard - North', 'Backyard - East', 'Backyard - South', 'Backyard - West',
+            'Side Yard - North', 'Side Yard - South',
+            'Patio Area', 'Garden Bed 1', 'Garden Bed 2', 'Garden Bed 3',
+            'Foundation Planting', 'Driveway Border', 'Property Line'
+        ];
+
+        const CONDITIONS = [
+            'Healthy/Mature',
+            'Healthy/Young', 
+            'Needs Pruning',
+            'Overgrown',
+            'Drought Stressed',
+            'Winter Damage',
+            'Crowded',
+            'Transplant Needed',
+            'Diseased',
+            'Pest Damage',
+            'Dead/Dying'
+        ];
+
+        // SPRINT 1: Priority Mapping System
+        const PRIORITY_MAP = {
+            'Dead/Dying': { level: 'CRITICAL', color: '#dc2626', timeline: 'Immediate action required' },
+            'Diseased': { level: 'CRITICAL', color: '#dc2626', timeline: 'Address within 2 weeks' },
+            'Pest Damage': { level: 'CRITICAL', color: '#dc2626', timeline: 'Address within 2 weeks' },
+            'Overgrown': { level: 'HIGH', color: '#ea580c', timeline: 'This season' },
+            'Crowded': { level: 'HIGH', color: '#ea580c', timeline: 'This season' },
+            'Transplant Needed': { level: 'HIGH', color: '#ea580c', timeline: 'This season or next' },
+            'Needs Pruning': { level: 'MEDIUM', color: '#ca8a04', timeline: 'Next maintenance cycle' },
+            'Drought Stressed': { level: 'MEDIUM', color: '#ca8a04', timeline: 'Adjust watering now' },
+            'Winter Damage': { level: 'MEDIUM', color: '#ca8a04', timeline: 'This season' },
+            'Healthy/Mature': { level: 'LOW', color: '#16a34a', timeline: 'Routine maintenance' },
+            'Healthy/Young': { level: 'LOW', color: '#16a34a', timeline: 'Routine maintenance' }
+        };
+
+        // SPRINT 1: Auto-assign priority based on condition
+        const getPriority = (condition) => {
+            return PRIORITY_MAP[condition] || { level: 'MEDIUM', color: '#ca8a04', timeline: 'Review needed' };
+        };
+
+        function App() {
+            const [step, setStep] = useState('client');
+            const [clientInfo, setClientInfo] = useState({ name: '', address: '', city: 'Boise', phone: '', zone: '5b' });
+            const [plants, setPlants] = useState([]);
+            const [newPlant, setNewPlant] = useState({ 
+                name: '', 
+                location: LOCATIONS[0], 
+                condition: 'Healthy/Mature', 
+                notes: '', 
+                qty: 1,
+                priority: getPriority('Healthy/Mature') // SPRINT 1: Auto-set priority
+            });
+            const [photos, setPhotos] = useState([]);
+            const [overallNotes, setOverallNotes] = useState('');
+            const [priorities, setPriorities] = useState('');
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                setTimeout(() => {
+                    const loading = document.getElementById('loading');
+                    if (loading) loading.style.display = 'none';
+                }, 500);
+            }, []);
+
+            const handlePhotoUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        setPhotos([...photos, {
+                            id: Date.now(),
+                            data: event.target.result,
+                            location: newPlant.location
+                        }]);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            
+            const addPlant = () => {
+                if (!newPlant.name) return;
+                const plantData = PLANTS[newPlant.name] || {};
+                const priority = getPriority(newPlant.condition); // SPRINT 1: Get priority
+                setPlants([...plants, { 
+                    ...newPlant, 
+                    ...plantData, 
+                    priority, // SPRINT 1: Include priority
+                    id: Date.now() 
+                }]);
+                setNewPlant({ 
+                    name: '', 
+                    location: newPlant.location, 
+                    condition: 'Healthy/Mature', 
+                    notes: '', 
+                    qty: 1,
+                    priority: getPriority('Healthy/Mature')
+                });
+            };
+            
+            // SPRINT 1: Update priority when condition changes
+            const handleConditionChange = (condition) => {
+                const priority = getPriority(condition);
+                setNewPlant({ ...newPlant, condition, priority });
+            };
+
+            const exportPDF = () => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    
+                    // Header
+                    doc.setFontSize(20);
+                    doc.setTextColor(22, 163, 74);
+                    doc.text('Property Assessment Report', 20, 20);
+                    
+                    // Client info
+                    doc.setFontSize(11);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(`Client: ${clientInfo.name}`, 20, 35);
+                    doc.text(`Address: ${clientInfo.address}, ${clientInfo.city}`, 20, 42);
+                    doc.text(`Zone: ${clientInfo.zone} | Phone: ${clientInfo.phone}`, 20, 49);
+                    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 56);
+                    
+                    // SPRINT 1: CRITICAL ISSUES SECTION - TOP OF REPORT
+                    let y = 68;
+                    const criticalPlants = plants.filter(p => p.priority.level === 'CRITICAL');
+                    const highPlants = plants.filter(p => p.priority.level === 'HIGH');
+                    
+                    if (criticalPlants.length > 0 || highPlants.length > 0) {
+                        doc.setFontSize(16);
+                        doc.setTextColor(220, 38, 38);
+                        doc.text('⚠ CRITICAL ISSUES REQUIRING IMMEDIATE ATTENTION', 20, y);
+                        y += 10;
+                        
+                        if (criticalPlants.length > 0) {
+                            doc.setFontSize(10);
+                            doc.setTextColor(0, 0, 0);
+                            criticalPlants.forEach(plant => {
+                                if (y > 270) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.setTextColor(220, 38, 38);
+                                doc.text(`• ${plant.name} - ${plant.location}`, 25, y);
+                                y += 5;
+                                doc.setTextColor(100, 100, 100);
+                                doc.text(`  Condition: ${plant.condition} | Timeline: ${plant.priority.timeline}`, 25, y);
+                                y += 5;
+                                if (plant.notes) {
+                                    const noteLines = doc.splitTextToSize(`  Notes: ${plant.notes}`, 160);
+                                    noteLines.forEach(line => {
+                                        if (y > 270) {
+                                            doc.addPage();
+                                            y = 20;
+                                        }
+                                        doc.text(line, 25, y);
+                                        y += 5;
+                                    });
+                                }
+                                y += 2;
+                            });
+                            y += 5;
+                        }
+                        
+                        if (highPlants.length > 0) {
+                            doc.setFontSize(12);
+                            doc.setTextColor(234, 88, 12);
+                            doc.text('High Priority Items:', 20, y);
+                            y += 7;
+                            doc.setFontSize(10);
+                            doc.setTextColor(0, 0, 0);
+                            highPlants.forEach(plant => {
+                                if (y > 270) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.text(`• ${plant.name} - ${plant.location}: ${plant.condition}`, 25, y);
+                                y += 5;
+                            });
+                            y += 5;
+                        }
+                        y += 5;
+                    }
+                    
+                    // Summary
+                    if (y > 250) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.setFontSize(14);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('Summary', 20, y);
+                    y += 8;
+                    doc.setFontSize(11);
+                    doc.text(`Total Plants: ${plants.length}`, 20, y);
+                    y += 7;
+                    doc.text(`Native Plants: ${plants.filter(p => p.native).length}`, 20, y);
+                    y += 7;
+                    doc.text(`Photos: ${photos.length}`, 20, y);
+                    y += 7;
+                    
+                    // SPRINT 1: Priority Breakdown
+                    doc.setTextColor(220, 38, 38);
+                    doc.text(`Critical Issues: ${criticalPlants.length}`, 20, y);
+                    y += 7;
+                    doc.setTextColor(234, 88, 12);
+                    doc.text(`High Priority: ${highPlants.length}`, 20, y);
+                    y += 7;
+                    doc.setTextColor(202, 138, 4);
+                    doc.text(`Medium Priority: ${plants.filter(p => p.priority.level === 'MEDIUM').length}`, 20, y);
+                    y += 7;
+                    doc.setTextColor(22, 163, 74);
+                    doc.text(`Low Priority (Healthy): ${plants.filter(p => p.priority.level === 'LOW').length}`, 20, y);
+                    y += 12;
+                    
+                    // SPRINT 2: NATIVE PLANT INTELLIGENCE
+                    const nativeCount = plants.filter(p => p.native).length;
+                    const nativePercent = Math.round((nativeCount / plants.length) * 100);
+                    
+                    if (y > 230) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    doc.setFontSize(14);
+                    doc.setTextColor(22, 163, 74);
+                    doc.text('Native Plant Analysis', 20, y);
+                    y += 10;
+                    
+                    // Visual percentage bar
+                    doc.setFontSize(11);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(`${nativePercent}% Idaho Native Plants`, 20, y);
+                    y += 7;
+                    
+                    // Draw percentage bar
+                    const barWidth = 170;
+                    const barHeight = 8;
+                    const filledWidth = (nativePercent / 100) * barWidth;
+                    
+                    // Background (gray)
+                    doc.setFillColor(229, 231, 235);
+                    doc.rect(20, y, barWidth, barHeight, 'F');
+                    
+                    // Filled portion (green gradient based on percentage)
+                    if (nativePercent >= 40) {
+                        doc.setFillColor(22, 163, 74); // Dark green for good percentage
+                    } else if (nativePercent >= 20) {
+                        doc.setFillColor(202, 138, 4); // Amber for medium
+                    } else {
+                        doc.setFillColor(234, 88, 12); // Orange for low
+                    }
+                    doc.rect(20, y, filledWidth, barHeight, 'F');
+                    
+                    // Border
+                    doc.setDrawColor(156, 163, 175);
+                    doc.rect(20, y, barWidth, barHeight, 'S');
+                    y += 12;
+                    
+                    // Breakdown
+                    doc.setFontSize(10);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(`${nativeCount} native · ${plants.length - nativeCount} adapted · ${plants.length} total documented`, 20, y);
+                    y += 10;
+                    
+                    // Smart recommendations based on percentage
+                    doc.setFontSize(11);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Recommendation:', 20, y);
+                    doc.setFont(undefined, 'normal');
+                    y += 6;
+                    
+                    let recommendation = '';
+                    let idahoContext = '';
+                    
+                    if (nativePercent >= 50) {
+                        recommendation = 'Excellent native plant diversity! Your landscape supports local ecosystems and requires less water/maintenance than typical Idaho gardens.';
+                        idahoContext = 'Treasure Valley gardens average 15-20% native plants. You\'re significantly above average at ' + nativePercent + '%.';
+                    } else if (nativePercent >= 30) {
+                        recommendation = 'Good foundation of native plants. Consider replacing high-maintenance adapted species with additional natives to reduce water needs and support pollinators.';
+                        idahoContext = 'Treasure Valley gardens average 15-20% native. You\'re above average at ' + nativePercent + '%. Target: 40-50% for optimal water savings.';
+                    } else if (nativePercent >= 15) {
+                        recommendation = 'Your native percentage is typical for Treasure Valley landscapes. Opportunity: Replace struggling adapted plants with hardy natives suited to Idaho\'s climate.';
+                        idahoContext = 'You\'re at ' + nativePercent + '%, close to the Treasure Valley average of 15-20%. Increasing to 30-40% can cut water use by 30%.';
+                    } else {
+                        recommendation = 'Significant opportunity to improve water efficiency and reduce maintenance by incorporating more Idaho native plants.';
+                        idahoContext = 'At ' + nativePercent + '% native, you\'re below the Treasure Valley average of 15-20%. Natives use 50% less water and require minimal care once established.';
+                    }
+                    
+                    doc.setFontSize(10);
+                    const recLines = doc.splitTextToSize(recommendation, 170);
+                    recLines.forEach(line => {
+                        if (y > 270) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.text(line, 20, y);
+                        y += 5;
+                    });
+                    y += 3;
+                    
+                    doc.setTextColor(22, 101, 52);
+                    const contextLines = doc.splitTextToSize(idahoContext, 170);
+                    contextLines.forEach(line => {
+                        if (y > 270) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.text(line, 20, y);
+                        y += 5;
+                    });
+                    y += 10;
+                    
+                    // Overall Observations
+                    doc.setTextColor(0, 0, 0);
+                    if (overallNotes) {
+                        if (y > 250) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.setFontSize(14);
+                        doc.text('Overall Observations', 20, y);
+                        y += 8;
+                        doc.setFontSize(10);
+                        const observationLines = doc.splitTextToSize(overallNotes, 170);
+                        observationLines.forEach(line => {
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            doc.text(line, 20, y);
+                            y += 5;
+                        });
+                        y += 5;
+                    }
+                    
+                    // Priority Recommendations
+                    if (priorities) {
+                        if (y > 250) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.setFontSize(14);
+                        doc.text('Priority Recommendations', 20, y);
+                        y += 8;
+                        doc.setFontSize(10);
+                        const priorityLines = doc.splitTextToSize(priorities, 170);
+                        priorityLines.forEach(line => {
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            doc.text(line, 20, y);
+                            y += 5;
+                        });
+                        y += 10;
+                    }
+                    
+                    // SPRINT 3: GENUS-BASED CARE RECOMMENDATIONS
+                    // Group plants by genus and provide care guidance
+                    const genusCounts = {};
+                    plants.forEach(plant => {
+                        if (plant.scientificName) {
+                            const genus = plant.scientificName.split(' ')[0];
+                            if (GENUS_CARE[genus]) {
+                                if (!genusCounts[genus]) {
+                                    genusCounts[genus] = [];
+                                }
+                                genusCounts[genus].push(plant);
+                            }
+                        }
+                    });
+                    
+                    if (Object.keys(genusCounts).length > 0) {
+                        if (y > 230) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        
+                        doc.setFontSize(14);
+                        doc.setTextColor(34, 139, 34);
+                        doc.text('Plant Care Guide by Genus', 20, y);
+                        y += 7;
+                        
+                        doc.setFontSize(9);
+                        doc.setTextColor(100, 100, 100);
+                        doc.text('Idaho-specific care recommendations based on plant genus', 20, y);
+                        y += 10;
+                        
+                        Object.keys(genusCounts).sort().forEach(genus => {
+                            const plantList = genusCounts[genus];
+                            const care = GENUS_CARE[genus];
+                            
+                            if (y > 250) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            // Genus header
+                            doc.setFontSize(12);
+                            doc.setTextColor(34, 139, 34);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`${care.common} (${genus}) - ${plantList.length} plant${plantList.length > 1 ? 's' : ''} documented`, 20, y);
+                            doc.setFont(undefined, 'normal');
+                            y += 6;
+                            
+                            // Quick care summary
+                            doc.setFontSize(10);
+                            doc.setTextColor(0, 0, 0);
+                            
+                            // Pruning
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Pruning: ', 22, y);
+                            doc.setFont(undefined, 'normal');
+                            const pruneLines = doc.splitTextToSize(care.prune, 150);
+                            let xOffset = 22 + doc.getTextWidth('Pruning: ');
+                            pruneLines.forEach((line, idx) => {
+                                if (idx === 0) {
+                                    doc.text(line, xOffset, y);
+                                } else {
+                                    y += 5;
+                                    if (y > 270) {
+                                        doc.addPage();
+                                        y = 20;
+                                    }
+                                    doc.text(line, 22, y);
+                                }
+                            });
+                            y += 5;
+                            
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            // Watering
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Watering: ', 22, y);
+                            doc.setFont(undefined, 'normal');
+                            const waterLines = doc.splitTextToSize(care.water, 150);
+                            xOffset = 22 + doc.getTextWidth('Watering: ');
+                            waterLines.forEach((line, idx) => {
+                                if (idx === 0) {
+                                    doc.text(line, xOffset, y);
+                                } else {
+                                    y += 5;
+                                    if (y > 270) {
+                                        doc.addPage();
+                                        y = 20;
+                                    }
+                                    doc.text(line, 22, y);
+                                }
+                            });
+                            y += 5;
+                            
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            // Issues
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Watch For: ', 22, y);
+                            doc.setFont(undefined, 'normal');
+                            const issueLines = doc.splitTextToSize(care.issues, 150);
+                            xOffset = 22 + doc.getTextWidth('Watch For: ');
+                            issueLines.forEach((line, idx) => {
+                                if (idx === 0) {
+                                    doc.text(line, xOffset, y);
+                                } else {
+                                    y += 5;
+                                    if (y > 270) {
+                                        doc.addPage();
+                                        y = 20;
+                                    }
+                                    doc.text(line, 22, y);
+                                }
+                            });
+                            y += 5;
+                            
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            // Idaho tip
+                            doc.setTextColor(22, 101, 52);
+                            doc.setFont(undefined, 'italic');
+                            const idahoLines = doc.splitTextToSize(`Idaho Tip: ${care.idaho}`, 165);
+                            idahoLines.forEach(line => {
+                                if (y > 270) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.text(line, 22, y);
+                                y += 5;
+                            });
+                            doc.setFont(undefined, 'normal');
+                            y += 3;
+                            
+                            doc.setTextColor(0, 0, 0);
+                        });
+                        
+                        y += 5;
+                    }
+                    
+                    // SPRINT 1: PLANTS GROUPED BY PRIORITY LEVEL
+                    if (y > 250) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.setFontSize(14);
+                    doc.text('Plants by Priority Level', 20, y);
+                    y += 10;
+                    
+                    const priorityLevels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+                    const priorityColors = {
+                        'CRITICAL': [220, 38, 38],
+                        'HIGH': [234, 88, 12],
+                        'MEDIUM': [202, 138, 4],
+                        'LOW': [22, 163, 74]
+                    };
+                    
+                    priorityLevels.forEach(level => {
+                        const levelPlants = plants.filter(p => p.priority.level === level);
+                        if (levelPlants.length === 0) return;
+                        
+                        if (y > 250) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        
+                        doc.setFontSize(13);
+                        doc.setTextColor(...priorityColors[level]);
+                        doc.text(`${level} PRIORITY (${levelPlants.length} plants)`, 20, y);
+                        y += 7;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(0, 0, 0);
+                        
+                        levelPlants.forEach(plant => {
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`${plant.name}${plant.native ? ' ★' : ''}`, 25, y);
+                            doc.setFont(undefined, 'normal');
+                            y += 5;
+                            
+                            doc.setTextColor(100, 100, 100);
+                            doc.text(`Location: ${plant.location} | Condition: ${plant.condition}`, 25, y);
+                            y += 5;
+                            
+                            if (plant.type) {
+                                doc.text(`Type: ${plant.type} | Water: ${plant.water || 'N/A'}`, 25, y);
+                                y += 5;
+                            }
+                            
+                            doc.setTextColor(150, 150, 150);
+                            doc.text(`Timeline: ${plant.priority.timeline}`, 25, y);
+                            y += 5;
+                            
+                            if (plant.notes) {
+                                doc.setTextColor(0, 0, 0);
+                                const noteLines = doc.splitTextToSize(`Notes: ${plant.notes}`, 160);
+                                noteLines.forEach(line => {
+                                    if (y > 270) {
+                                        doc.addPage();
+                                        y = 20;
+                                    }
+                                    doc.text(line, 25, y);
+                                    y += 5;
+                                });
+                            }
+                            
+                            doc.setTextColor(0, 0, 0);
+                            y += 3;
+                        });
+                        
+                        y += 5;
+                    });
+                    
+                    // Photos page
+                    if (photos.length > 0) {
+                        doc.addPage();
+                        doc.setFontSize(14);
+                        doc.text('Photo Documentation', 20, 20);
+                        doc.setFontSize(10);
+                        let photoY = 30;
+                        photos.forEach((photo, idx) => {
+                            if (photoY > 250) {
+                                doc.addPage();
+                                photoY = 20;
+                            }
+                            doc.text(`Photo ${idx + 1}: ${photo.location}`, 20, photoY);
+                            photoY += 5;
+                        });
+                    }
+                    
+                    // SPRINT 3: DETAILED CARE CALENDAR APPENDIX
+                    // Comprehensive seasonal care guide for documented genera
+                    if (Object.keys(genusCounts).length > 0) {
+                        doc.addPage();
+                        y = 20;
+                        
+                        // Title page for appendix
+                        doc.setFontSize(18);
+                        doc.setTextColor(34, 139, 34);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('APPENDIX', 105, y, { align: 'center' });
+                        y += 10;
+                        
+                        doc.setFontSize(14);
+                        doc.text('Idaho Plant Care Calendar', 105, y, { align: 'center' });
+                        y += 7;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(100, 100, 100);
+                        doc.setFont(undefined, 'normal');
+                        doc.text('Seasonal care guide for plants documented in this assessment', 105, y, { align: 'center' });
+                        y += 5;
+                        doc.text('Treasure Valley / Boise area (Zone 5-6)', 105, y, { align: 'center' });
+                        y += 15;
+                        
+                        doc.setFontSize(9);
+                        doc.setTextColor(120, 120, 120);
+                        const introText = 'This calendar provides month-by-month care instructions for the plant genera documented during your property assessment. All recommendations are tailored to Idaho\'s climate, with specific attention to Treasure Valley conditions. Use this as a reference throughout the growing season.';
+                        const introLines = doc.splitTextToSize(introText, 170);
+                        introLines.forEach(line => {
+                            doc.text(line, 20, y);
+                            y += 5;
+                        });
+                        y += 10;
+                        
+                        // Detailed seasonal care calendar for each genus
+                        const genusCalendars = {
+                            'Artemisia': {
+                                'MARCH-APRIL (Early Spring)': [
+                                    'Light pruning: Remove dead wood and winter damage',
+                                    'Shape plants with light shearing if needed',
+                                    'Do NOT fertilize - sagebrush thrives in lean soils',
+                                    'No watering needed unless extreme drought'
+                                ],
+                                'MAY-JUNE (Late Spring)': [
+                                    'New growth emerges - avoid disturbing plants',
+                                    'Watch for aphids (rarely serious - usually ignore)',
+                                    'Still no supplemental water needed for established plants',
+                                    'First-year plants: begin weekly deep watering'
+                                ],
+                                'JULY-AUGUST (Summer)': [
+                                    'Established plants: water only during extreme heat (100°F+ for 7+ days)',
+                                    'First-year plants: continue weekly deep watering',
+                                    'Flowering occurs late summer',
+                                    'Avoid overhead watering - encourages root rot'
+                                ],
+                                'SEPTEMBER-OCTOBER (Fall)': [
+                                    'No maintenance needed',
+                                    'Plants harden off for winter naturally',
+                                    'Do not prune in fall',
+                                    'Reduce watering as temperatures cool'
+                                ],
+                                'NOVEMBER-FEBRUARY (Winter)': [
+                                    'No care needed - fully dormant',
+                                    'Extremely cold hardy',
+                                    'Silver foliage provides winter interest'
+                                ]
+                            },
+                            'Pinus': {
+                                'MARCH-APRIL (Early Spring)': [
+                                    'Do NOT prune - pitch moths become active',
+                                    'New "candles" (growth shoots) emerge',
+                                    'No fertilizer needed for established trees',
+                                    'First-year trees: begin weekly deep watering'
+                                ],
+                                'MAY-SEPTEMBER (Growing Season)': [
+                                    'Never prune during this period - attracts pitch moths',
+                                    'Deep water first-year trees weekly',
+                                    'Established trees: water during prolonged drought only',
+                                    'Watch for pitch moths - look for pitch/resin oozing from trunk',
+                                    'Ponderosa: may self-prune lower branches naturally'
+                                ],
+                                'OCTOBER-JANUARY (Dormant Pruning Window)': [
+                                    'ONLY prune during these months when pitch moths inactive',
+                                    'Remove dead, damaged, or diseased branches only',
+                                    'Limber Pine: check for white pine blister rust on lower branches',
+                                    'Remove pruning debris from area immediately (prevents beetle breeding)',
+                                    'Make clean cuts, avoid tearing bark',
+                                    'Established trees: no winter watering needed'
+                                ],
+                                'FEBRUARY': [
+                                    'Last month of safe pruning window',
+                                    'Complete all pruning by end of February',
+                                    'Prepare for spring growth cycle'
+                                ]
+                            },
+                            'Aquilegia': {
+                                'MARCH-APRIL (Early Spring)': [
+                                    'Cut back old foliage to ground if not done in fall',
+                                    'New growth emerges from crown',
+                                    'Apply balanced fertilizer (10-10-10) once as new growth appears',
+                                    'Begin regular watering as soil thaws',
+                                    'Watch for crown rot if area stays too wet'
+                                ],
+                                'MAY-JULY (Bloom Season)': [
+                                    'Flowers appear late May through July',
+                                    'Deadhead spent blooms to encourage second flush',
+                                    'Cut flower stems to next bud or leaf',
+                                    'Keep soil moist but not waterlogged',
+                                    'Allow top 1-2 inches to dry between waterings',
+                                    'Western Columbine: prefers dappled shade, morning sun only'
+                                ],
+                                'LATE JULY-AUGUST': [
+                                    'Leaf miners may appear (cosmetic damage only)',
+                                    'Spider mites, powdery mildew common as foliage ages',
+                                    'Solution: simply cut back affected foliage to ground',
+                                    'Fresh foliage will emerge in 2-3 weeks',
+                                    'Possible second bloom if deadheaded earlier',
+                                    'Continue moderate watering'
+                                ],
+                                'SEPTEMBER-OCTOBER (Fall)': [
+                                    'Allow plants to self-seed if desired (short-lived perennial)',
+                                    'Or remove seed heads to prevent spread',
+                                    'Cut foliage to ground after first hard freeze',
+                                    'Reduce watering as plants go dormant',
+                                    'Do NOT fertilize in fall'
+                                ],
+                                'NOVEMBER-FEBRUARY (Winter)': [
+                                    'Plants fully dormant',
+                                    'Mulch crown area for winter protection (optional)',
+                                    'No watering needed',
+                                    'Expect 2-4 year lifespan, but self-seeding provides new plants'
+                                ]
+                            },
+                            'Rosa': {
+                                'MARCH (Late Winter Pruning)': [
+                                    'Primary pruning window: after extreme cold threat passes',
+                                    'Woods Rose: prune to control spread and maintain desired height',
+                                    'Remove dead, damaged, diseased canes',
+                                    'Can be held at 2-5 ft height with annual pruning',
+                                    'Prune to outward-facing buds for open form'
+                                ],
+                                'APRIL-MAY (Spring Growth)': [
+                                    'New canes emerge red with prickles',
+                                    'First-year plants: begin regular watering to establish',
+                                    'Established plants: deep water only if dry',
+                                    'No fertilizer needed for native Woods Rose',
+                                    'Flower buds form late May'
+                                ],
+                                'LATE MAY-JULY (Bloom Period)': [
+                                    'Fragrant pink to lilac flowers appear',
+                                    'Attracts bees and pollinators',
+                                    'Deadhead spent blooms if desired (or leave for hips)',
+                                    'Continue watering first-year plants',
+                                    'Established plants extremely drought tolerant'
+                                ],
+                                'AUGUST-OCTOBER (Hip Development)': [
+                                    'Bright red/orange rose hips develop',
+                                    'Hips rich in Vitamin C - edible for humans and wildlife',
+                                    'Leave hips on plant for winter wildlife food',
+                                    'Begin reducing water as plants harden off',
+                                    'No fall pruning needed'
+                                ],
+                                'NOVEMBER-FEBRUARY (Winter)': [
+                                    'Deciduous - drops leaves',
+                                    'Red canes provide winter interest',
+                                    'Hips persist through winter',
+                                    'Extremely cold hardy (to -10°F and below)',
+                                    'No winter care needed'
+                                ]
+                            },
+                            'Cercocarpus': {
+                                'Year-Round': [
+                                    'One of lowest-maintenance Idaho natives',
+                                    'Minimal pruning needed - remove dead wood only',
+                                    'Extremely drought tolerant once established (1 year)',
+                                    'Deep tap root accesses deep soil moisture',
+                                    'No fertilizer needed - nitrogen-fixing plant improves soil',
+                                    'Very few pest or disease problems'
+                                ],
+                                'MARCH-APRIL (Spring)': [
+                                    'New growth begins',
+                                    'Curl-leaf species: evergreen, maintains foliage',
+                                    'Birch-leaf species: new leaves emerge',
+                                    'First-year plants only: begin weekly deep watering'
+                                ],
+                                'MAY-JUNE': [
+                                    'Small flowers appear (not showy)',
+                                    'Critical wildlife browse plant',
+                                    'Established plants need no supplemental water'
+                                ],
+                                'JULY-OCTOBER': [
+                                    'Seed heads develop with feathery plumes',
+                                    'Continue no-water regimen for established plants',
+                                    'One of most heat and drought tolerant ID natives'
+                                ],
+                                'WINTER': [
+                                    'Extremely cold hardy',
+                                    'Curl-leaf provides evergreen screening year-round',
+                                    'No winter care needed'
+                                ]
+                            },
+                            'Eriogonum': {
+                                'MARCH-APRIL (Early Spring)': [
+                                    'Cut back dead flower stems from previous year',
+                                    'New growth emerges from base',
+                                    'No fertilizer needed',
+                                    'High desert native - thrives in lean soils',
+                                    'Ensure excellent drainage'
+                                ],
+                                'MAY-AUGUST (Bloom Season)': [
+                                    'Flowers appear in clusters (white, yellow, or pink)',
+                                    'Important nectar source for pollinators',
+                                    'Very low water needs - drought tolerant',
+                                    'Overwatering is primary cause of failure',
+                                    'Flowers can be cut and dried for arrangements'
+                                ],
+                                'SEPTEMBER-OCTOBER (Fall)': [
+                                    'Seed heads persist (attractive dried)',
+                                    'Reduce any supplemental watering',
+                                    'Allow seed heads to remain for winter interest',
+                                    'Self-seeds moderately'
+                                ],
+                                'NOVEMBER-FEBRUARY (Winter)': [
+                                    'Very cold hardy',
+                                    'Dried flower heads provide winter texture',
+                                    'No winter care needed',
+                                    'Root rot is only issue - ensure good drainage'
+                                ]
+                            }
+                        };
+                        
+                        // Generate calendar pages for each documented genus
+                        Object.keys(genusCounts).sort().forEach(genus => {
+                            const calendar = genusCalendars[genus];
+                            if (!calendar) return; // Skip if no calendar defined
+                            
+                            const care = GENUS_CARE[genus];
+                            const plantList = genusCounts[genus];
+                            
+                            // New page for each genus
+                            doc.addPage();
+                            y = 20;
+                            
+                            // Genus header
+                            doc.setFontSize(16);
+                            doc.setTextColor(34, 139, 34);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`${care.common.toUpperCase()} (${genus})`, 20, y);
+                            y += 7;
+                            
+                            doc.setFontSize(10);
+                            doc.setTextColor(100, 100, 100);
+                            doc.setFont(undefined, 'normal');
+                            doc.text(`${plantList.length} plant${plantList.length > 1 ? 's' : ''} documented: ${plantList.map(p => p.name).join(', ')}`, 20, y);
+                            y += 10;
+                            
+                            // Seasonal sections
+                            Object.keys(calendar).forEach(season => {
+                                if (y > 240) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                
+                                // Season header
+                                doc.setFontSize(12);
+                                doc.setTextColor(34, 139, 34);
+                                doc.setFont(undefined, 'bold');
+                                doc.text(season, 20, y);
+                                y += 6;
+                                
+                                // Tasks for this season
+                                doc.setFontSize(9);
+                                doc.setTextColor(0, 0, 0);
+                                doc.setFont(undefined, 'normal');
+                                
+                                calendar[season].forEach(task => {
+                                    if (y > 270) {
+                                        doc.addPage();
+                                        y = 20;
+                                    }
+                                    
+                                    // Bullet point
+                                    doc.setFont(undefined, 'bold');
+                                    doc.text('•', 22, y);
+                                    doc.setFont(undefined, 'normal');
+                                    
+                                    // Task text (wrap if needed)
+                                    const taskLines = doc.splitTextToSize(task, 165);
+                                    taskLines.forEach((line, idx) => {
+                                        if (idx > 0) {
+                                            y += 4;
+                                            if (y > 270) {
+                                                doc.addPage();
+                                                y = 20;
+                                            }
+                                        }
+                                        doc.text(line, 27, y);
+                                    });
+                                    y += 5;
+                                });
+                                
+                                y += 3;
+                            });
+                        });
+                        
+                        // Final page: General Idaho Gardening Notes
+                        doc.addPage();
+                        y = 20;
+                        
+                        doc.setFontSize(14);
+                        doc.setTextColor(34, 139, 34);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('General Idaho Gardening Notes', 20, y);
+                        y += 10;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFont(undefined, 'normal');
+                        
+                        const generalNotes = [
+                            {
+                                title: 'Frost Dates (Treasure Valley)',
+                                items: [
+                                    'Last spring frost: Mid to late May',
+                                    'First fall frost: Mid to late September',
+                                    'Growing season: approximately 140 days'
+                                ]
+                            },
+                            {
+                                title: 'Watering Best Practices',
+                                items: [
+                                    'Water deeply and infrequently rather than shallow and often',
+                                    'Morning watering reduces disease and water loss to evaporation',
+                                    'Native plants need 50-70% less water than adapted species',
+                                    'Drip irrigation or soaker hoses more efficient than overhead'
+                                ]
+                            },
+                            {
+                                title: 'Idaho Climate Challenges',
+                                items: [
+                                    'Alkaline soils (pH 7.5-8.5) common - choose appropriate plants',
+                                    'Low humidity increases plant stress and pest issues',
+                                    'Temperature extremes: -10°F winter to 105°F+ summer',
+                                    'Late spring frosts can damage early bloomers',
+                                    'Wind desiccation is common - windbreaks help'
+                                ]
+                            },
+                            {
+                                title: 'Resources',
+                                items: [
+                                    'University of Idaho Extension: extension.uidaho.edu',
+                                    'Idaho Botanical Garden: idahobotanicalgarden.org',
+                                    'Idaho Native Plant Society: idahonativeplants.org'
+                                ]
+                            }
+                        ];
+                        
+                        generalNotes.forEach(section => {
+                            if (y > 240) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            doc.setFont(undefined, 'bold');
+                            doc.text(section.title, 20, y);
+                            y += 6;
+                            
+                            doc.setFont(undefined, 'normal');
+                            section.items.forEach(item => {
+                                if (y > 270) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.text('• ' + item, 22, y);
+                                y += 5;
+                            });
+                            y += 5;
+                        });
+                    }
+                    
+                    // SPRINT 3: DETAILED CARE CALENDAR APPENDIX (SEASON-FIRST ORGANIZATION)
+                    // Comprehensive seasonal care guide organized by month for easy homeowner reference
+                    if (Object.keys(genusCounts).length > 0) {
+                        doc.addPage();
+                        y = 20;
+                        
+                        // Title page for appendix
+                        doc.setFontSize(18);
+                        doc.setTextColor(34, 139, 34);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('APPENDIX', 105, y, { align: 'center' });
+                        y += 10;
+                        
+                        doc.setFontSize(14);
+                        doc.text('Idaho Plant Care Calendar', 105, y, { align: 'center' });
+                        y += 7;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(100, 100, 100);
+                        doc.setFont(undefined, 'normal');
+                        doc.text('Monthly care guide for plants documented in this assessment', 105, y, { align: 'center' });
+                        y += 5;
+                        doc.text('Treasure Valley / Boise area (Zone 5-6)', 105, y, { align: 'center' });
+                        y += 15;
+                        
+                        doc.setFontSize(9);
+                        doc.setTextColor(120, 120, 120);
+                        const introText = 'This calendar is organized by month so you can quickly see all care tasks for your documented plants during each season. Simply turn to the current month to see what needs attention. All recommendations are tailored to Idaho\'s climate and Treasure Valley conditions.';
+                        const introLines = doc.splitTextToSize(introText, 170);
+                        introLines.forEach(line => {
+                            doc.text(line, 20, y);
+                            y += 5;
+                        });
+                        y += 5;
+                        
+                        // Quick reference - documented plants
+                        doc.setFontSize(9);
+                        doc.setTextColor(34, 139, 34);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('YOUR DOCUMENTED PLANTS:', 20, y);
+                        y += 5;
+                        doc.setFont(undefined, 'normal');
+                        doc.setTextColor(100, 100, 100);
+                        Object.keys(genusCounts).sort().forEach(genus => {
+                            const care = GENUS_CARE[genus];
+                            const plantList = genusCounts[genus];
+                            doc.text(`• ${care.common} (${genus}): ${plantList.length} plant${plantList.length > 1 ? 's' : ''}`, 22, y);
+                            y += 4;
+                        });
+                        y += 10;
+                        
+                        // Seasonal care data organized by month
+                        const monthlyTasks = {
+                            'Artemisia': {
+                                'MARCH': ['Light pruning: remove dead wood and winter damage', 'Shape plants with light shearing if needed', 'Do NOT fertilize - thrives in lean soils'],
+                                'APRIL': ['Complete any needed pruning early in month', 'No watering needed unless extreme drought'],
+                                'MAY': ['New growth emerges - avoid disturbing', 'Watch for aphids (rarely serious)', 'First-year plants: begin weekly deep watering'],
+                                'JUNE': ['No supplemental water for established plants', 'First-year: continue weekly deep watering'],
+                                'JULY': ['Established: water only during extreme heat (100°F+ for 7+ days)', 'First-year: weekly deep watering', 'Avoid overhead watering'],
+                                'AUGUST': ['Continue heat-based watering for established plants', 'Flowering occurs late summer', 'First-year: maintain weekly watering'],
+                                'SEPTEMBER': ['Begin reducing watering frequency', 'Plants naturally harden off for winter', 'Do NOT prune in fall'],
+                                'OCTOBER': ['No maintenance needed', 'Stop supplemental watering'],
+                                'NOVEMBER': ['Fully dormant - no care needed', 'Silver foliage provides winter interest'],
+                                'DECEMBER': ['No care needed - extremely cold hardy'],
+                                'JANUARY': ['No care needed'],
+                                'FEBRUARY': ['Prepare for early March pruning if needed']
+                            },
+                            'Pinus': {
+                                'MARCH': ['Do NOT prune - pitch moths become active', 'New candles (growth shoots) emerge', 'First-year trees: begin weekly deep watering'],
+                                'APRIL': ['Never prune - growing season begins', 'No fertilizer needed for established trees'],
+                                'MAY': ['Never prune during growing season', 'Deep water first-year trees weekly', 'Watch for pitch moths (resin oozing from trunk)'],
+                                'JUNE': ['Continue no-pruning policy', 'Established: water only during drought', 'Ponderosa may self-prune lower branches'],
+                                'JULY': ['Never prune', 'First-year: weekly deep watering', 'Established: drought watering only'],
+                                'AUGUST': ['Never prune', 'Monitor for pitch moth damage'],
+                                'SEPTEMBER': ['Never prune', 'Reduce watering as temperatures cool'],
+                                'OCTOBER': ['PRUNING WINDOW OPENS - safe to prune Oct-Jan', 'Remove dead/diseased branches only', 'Check Limber Pine for blister rust'],
+                                'NOVEMBER': ['Safe to prune if needed', 'Remove debris immediately (prevents beetles)', 'No winter watering needed'],
+                                'DECEMBER': ['Safe to prune if needed', 'Make clean cuts, avoid tearing bark'],
+                                'JANUARY': ['Last month of safe pruning window', 'Complete all pruning tasks'],
+                                'FEBRUARY': ['PRUNING WINDOW CLOSES - do not prune after Feb']
+                            },
+                            'Aquilegia': {
+                                'MARCH': ['Cut back old foliage to ground', 'New growth emerges from crown', 'Apply balanced fertilizer (10-10-10) once'],
+                                'APRIL': ['Continue fertilizing if not done in March', 'Begin regular watering as soil thaws', 'Watch for crown rot in wet areas'],
+                                'MAY': ['Flowers begin appearing late month', 'Keep soil moist but not waterlogged', 'Allow top 1-2" to dry between waterings'],
+                                'JUNE': ['Peak bloom period', 'Deadhead spent blooms for second flush', 'Cut stems to next bud or leaf', 'Western Columbine: prefers dappled shade'],
+                                'JULY': ['Continue deadheading', 'Maintain moderate moisture', 'Watch for leaf miners (cosmetic only)'],
+                                'AUGUST': ['Spider mites, powdery mildew common as foliage ages', 'Cut back affected foliage to ground - fresh growth in 2-3 weeks', 'Possible second bloom if deadheaded earlier'],
+                                'SEPTEMBER': ['Allow self-seeding if desired (short-lived perennial)', 'Or remove seed heads to prevent spread', 'Begin reducing watering'],
+                                'OCTOBER': ['Cut foliage to ground after first hard freeze', 'Reduce watering as dormancy begins', 'Do NOT fertilize in fall'],
+                                'NOVEMBER': ['Plants fully dormant', 'Optional: mulch crown for winter protection', 'No watering needed'],
+                                'DECEMBER': ['No care needed - dormant'],
+                                'JANUARY': ['No care needed'],
+                                'FEBRUARY': ['Prepare for late winter pruning']
+                            },
+                            'Rosa': {
+                                'MARCH': ['PRIMARY PRUNING WINDOW', 'Prune after extreme cold threat passes', 'Remove dead, damaged, diseased canes', 'Control spread, maintain 2-5 ft height', 'Prune to outward-facing buds'],
+                                'APRIL': ['New canes emerge red with prickles', 'First-year: begin regular watering', 'Established: deep water only if dry', 'No fertilizer needed for native Woods Rose'],
+                                'MAY': ['Flower buds form late month', 'Continue watering first-year plants', 'Established plants extremely drought tolerant'],
+                                'JUNE': ['Fragrant pink/lilac flowers appear', 'Attracts bees and pollinators', 'Deadhead if desired or leave for hips'],
+                                'JULY': ['Continue bloom period', 'First-year: maintain watering', 'Established: drought tolerant'],
+                                'AUGUST': ['Rose hips begin developing', 'Bright red/orange color', 'Rich in Vitamin C', 'Begin reducing water'],
+                                'SEPTEMBER': ['Hips continue developing', 'Leave on plant for winter wildlife food', 'Reduce watering as plants harden off'],
+                                'OCTOBER': ['Hips fully developed', 'No fall pruning needed', 'Minimal watering'],
+                                'NOVEMBER': ['Deciduous - drops leaves', 'Red canes provide winter interest', 'Hips persist through winter', 'No care needed'],
+                                'DECEMBER': ['No care needed - extremely cold hardy (to -10°F)'],
+                                'JANUARY': ['No care needed'],
+                                'FEBRUARY': ['Prepare for March pruning']
+                            },
+                            'Cercocarpus': {
+                                'MARCH': ['New growth begins', 'Curl-leaf: maintains evergreen foliage', 'Birch-leaf: new leaves emerge', 'First-year only: begin weekly watering'],
+                                'APRIL': ['Continue first-year watering if needed', 'Established: no supplemental water'],
+                                'MAY': ['Small flowers appear (not showy)', 'Critical wildlife browse', 'No water needed for established plants'],
+                                'JUNE': ['Flowering period', 'One of most heat-tolerant ID natives'],
+                                'JULY': ['Seed heads develop with feathery plumes', 'No supplemental water needed'],
+                                'AUGUST': ['Continue no-water regimen for established', 'Extremely drought tolerant'],
+                                'SEPTEMBER': ['Seed heads mature', 'No maintenance needed'],
+                                'OCTOBER': ['Seed dispersal', 'Remove dead wood only if desired'],
+                                'NOVEMBER': ['Extremely cold hardy', 'Curl-leaf: evergreen screening year-round'],
+                                'DECEMBER': ['No care needed'],
+                                'JANUARY': ['No care needed'],
+                                'FEBRUARY': ['One of lowest-maintenance ID natives']
+                            },
+                            'Eriogonum': {
+                                'MARCH': ['Cut back dead flower stems from previous year', 'New growth emerges from base', 'Do NOT fertilize'],
+                                'APRIL': ['Continue removing dead stems if needed', 'Ensure excellent drainage', 'Thrives in lean soils'],
+                                'MAY': ['Flowers begin appearing in clusters', 'White, yellow, or pink blooms', 'Very low water needs'],
+                                'JUNE': ['Peak bloom - important pollinator plant', 'Drought tolerant', 'Overwatering is main cause of failure'],
+                                'JULY': ['Continue blooming', 'Flowers can be cut and dried for arrangements'],
+                                'AUGUST': ['Bloom period continues', 'Seed heads begin forming'],
+                                'SEPTEMBER': ['Seed heads persist (attractive dried)', 'Reduce any supplemental watering', 'Self-seeds moderately'],
+                                'OCTOBER': ['Allow seed heads to remain for winter interest', 'Stop watering'],
+                                'NOVEMBER': ['Very cold hardy', 'Dried flower heads provide texture'],
+                                'DECEMBER': ['No care needed'],
+                                'JANUARY': ['No care needed'],
+                                'FEBRUARY': ['Root rot only issue - ensure good drainage']
+                            }
+                        };
+                        
+                        // Generate monthly pages
+                        const months = [
+                            { name: 'JANUARY', season: 'Winter' },
+                            { name: 'FEBRUARY', season: 'Late Winter' },
+                            { name: 'MARCH', season: 'Early Spring' },
+                            { name: 'APRIL', season: 'Spring' },
+                            { name: 'MAY', season: 'Late Spring' },
+                            { name: 'JUNE', season: 'Early Summer' },
+                            { name: 'JULY', season: 'Summer' },
+                            { name: 'AUGUST', season: 'Late Summer' },
+                            { name: 'SEPTEMBER', season: 'Early Fall' },
+                            { name: 'OCTOBER', season: 'Fall' },
+                            { name: 'NOVEMBER', season: 'Late Fall' },
+                            { name: 'DECEMBER', season: 'Winter' }
+                        ];
+                        
+                        months.forEach(month => {
+                            // Check if any documented genus has tasks this month
+                            const hasActiveTasks = Object.keys(genusCounts).some(genus => {
+                                return monthlyTasks[genus] && monthlyTasks[genus][month.name] && monthlyTasks[genus][month.name].length > 0;
+                            });
+                            
+                            if (!hasActiveTasks) return; // Skip months with no tasks
+                            
+                            // New page for each month
+                            doc.addPage();
+                            y = 20;
+                            
+                            // Month header
+                            doc.setFontSize(16);
+                            doc.setTextColor(34, 139, 34);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(month.name, 20, y);
+                            y += 7;
+                            
+                            doc.setFontSize(11);
+                            doc.setTextColor(100, 100, 100);
+                            doc.setFont(undefined, 'italic');
+                            doc.text(month.season, 20, y);
+                            y += 10;
+                            
+                            doc.setFont(undefined, 'normal');
+                            
+                            // List all documented genera with tasks for this month
+                            Object.keys(genusCounts).sort().forEach(genus => {
+                                const tasks = monthlyTasks[genus] ? monthlyTasks[genus][month.name] : null;
+                                if (!tasks || tasks.length === 0) return; // Skip if no tasks this month
+                                
+                                const care = GENUS_CARE[genus];
+                                const plantCount = genusCounts[genus].length;
+                                
+                                if (y > 230) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                
+                                // Genus subheader
+                                doc.setFontSize(12);
+                                doc.setTextColor(34, 139, 34);
+                                doc.setFont(undefined, 'bold');
+                                doc.text(`${care.common} (${plantCount} plant${plantCount > 1 ? 's' : ''})`, 20, y);
+                                y += 6;
+                                
+                                // Tasks for this genus this month
+                                doc.setFontSize(9);
+                                doc.setTextColor(0, 0, 0);
+                                doc.setFont(undefined, 'normal');
+                                
+                                tasks.forEach(task => {
+                                    if (y > 270) {
+                                        doc.addPage();
+                                        y = 20;
+                                    }
+                                    
+                                    // Bullet point
+                                    doc.text('•', 22, y);
+                                    
+                                    // Task text (wrap if needed)
+                                    const taskLines = doc.splitTextToSize(task, 165);
+                                    taskLines.forEach((line, idx) => {
+                                        if (idx > 0) {
+                                            y += 4;
+                                            if (y > 270) {
+                                                doc.addPage();
+                                                y = 20;
+                                            }
+                                        }
+                                        doc.text(line, 27, y);
+                                    });
+                                    y += 5;
+                                });
+                                
+                                y += 4;
+                            });
+                        });
+                        
+                        // Final page: General Idaho Gardening Notes
+                        doc.addPage();
+                        y = 20;
+                        
+                        doc.setFontSize(14);
+                        doc.setTextColor(34, 139, 34);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('General Idaho Gardening Notes', 20, y);
+                        y += 10;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFont(undefined, 'normal');
+                        
+                        const generalNotes = [
+                            {
+                                title: 'Frost Dates (Treasure Valley)',
+                                items: [
+                                    'Last spring frost: Mid to late May',
+                                    'First fall frost: Mid to late September',
+                                    'Growing season: approximately 140 days'
+                                ]
+                            },
+                            {
+                                title: 'Watering Best Practices',
+                                items: [
+                                    'Water deeply and infrequently rather than shallow and often',
+                                    'Morning watering reduces disease and water loss to evaporation',
+                                    'Native plants need 50-70% less water than adapted species',
+                                    'Drip irrigation or soaker hoses more efficient than overhead'
+                                ]
+                            },
+                            {
+                                title: 'Idaho Climate Challenges',
+                                items: [
+                                    'Alkaline soils (pH 7.5-8.5) common - choose appropriate plants',
+                                    'Low humidity increases plant stress and pest issues',
+                                    'Temperature extremes: -10°F winter to 105°F+ summer',
+                                    'Late spring frosts can damage early bloomers',
+                                    'Wind desiccation is common - windbreaks help'
+                                ]
+                            },
+                            {
+                                title: 'Resources',
+                                items: [
+                                    'University of Idaho Extension: extension.uidaho.edu',
+                                    'Idaho Botanical Garden: idahobotanicalgarden.org',
+                                    'Idaho Native Plant Society: idahonativeplants.org'
+                                ]
+                            }
+                        ];
+                        
+                        generalNotes.forEach(section => {
+                            if (y > 240) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            
+                            doc.setFont(undefined, 'bold');
+                            doc.text(section.title, 20, y);
+                            y += 6;
+                            
+                            doc.setFont(undefined, 'normal');
+                            section.items.forEach(item => {
+                                if (y > 270) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.text('• ' + item, 22, y);
+                                y += 5;
+                            });
+                            y += 5;
+                        });
+                    }
+                    
+                    doc.save(`${clientInfo.name.replace(/\s+/g, '_')}_Assessment_${new Date().toISOString().split('T')[0]}.pdf`);
+                } catch (err) {
+                    alert('Error generating PDF: ' + err.message);
+                }
+            };
+
+            // Step 1: Client Info
+            if (step === 'client') {
+                return h('div', { className: 'min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-6' }, [
+                    h('div', { key: 'card', className: 'bg-white rounded-2xl shadow-xl p-8 max-w-md w-full' }, [
+                        h('div', { key: 'header', className: 'text-center mb-8' }, [
+                            h('div', { key: 'icon', className: 'text-6xl mb-4' }, '🌳'),
+                            h('h1', { key: 'title', className: 'text-3xl font-bold text-gray-800' }, 'Property Assessment'),
+                            h('p', { key: 'subtitle', className: 'text-gray-500 mt-2' }, 'Professional landscaping evaluation tool'),
+                            h('p', { key: 'version', className: 'text-xs text-green-600 mt-2 font-semibold' }, 'v4.0 Sprint 1 - Smart Prioritization')
+                        ]),
+                        h('div', { key: 'form', className: 'space-y-4' }, [
+                            h('div', { key: 'name' }, [
+                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Client Name *'),
+                                h('input', {
+                                    type: 'text',
+                                    value: clientInfo.name,
+                                    onChange: e => setClientInfo({ ...clientInfo, name: e.target.value }),
+                                    className: 'w-full p-3 border rounded-lg',
+                                    placeholder: 'John Smith'
+                                })
+                            ]),
+                            h('div', { key: 'phone' }, [
+                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Phone'),
+                                h('input', {
+                                    type: 'tel',
+                                    value: clientInfo.phone,
+                                    onChange: e => setClientInfo({ ...clientInfo, phone: e.target.value }),
+                                    className: 'w-full p-3 border rounded-lg',
+                                    placeholder: '(208) 555-1234'
+                                })
+                            ]),
+                            h('div', { key: 'address' }, [
+                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Property Address *'),
+                                h('input', {
+                                    type: 'text',
+                                    value: clientInfo.address,
+                                    onChange: e => setClientInfo({ ...clientInfo, address: e.target.value }),
+                                    className: 'w-full p-3 border rounded-lg',
+                                    placeholder: '123 Main Street'
+                                })
+                            ]),
+                            h('div', { key: 'location', className: 'grid grid-cols-2 gap-4' }, [
+                                h('div', { key: 'city' }, [
+                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'City'),
+                                    h('input', {
+                                        type: 'text',
+                                        value: clientInfo.city,
+                                        onChange: e => setClientInfo({ ...clientInfo, city: e.target.value }),
+                                        className: 'w-full p-3 border rounded-lg'
+                                    })
+                                ]),
+                                h('div', { key: 'zone' }, [
+                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'USDA Zone'),
+                                    h('select', {
+                                        value: clientInfo.zone,
+                                        onChange: e => setClientInfo({ ...clientInfo, zone: e.target.value }),
+                                        className: 'w-full p-3 border rounded-lg'
+                                    }, ['3b', '4a', '4b', '5a', '5b', '6a', '6b'].map(z =>
+                                        h('option', { key: z, value: z }, z)
+                                    ))
+                                ])
+                            ]),
+                            h('button', {
+                                key: 'next',
+                                onClick: () => setStep('assessment'),
+                                disabled: !clientInfo.name || !clientInfo.address,
+                                className: 'w-full bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 mt-6'
+                            }, 'Begin Assessment →')
+                        ])
+                    ])
+                ]);
+            }
+            
+            // Step 2: Assessment
+            if (step === 'assessment') {
+                return h('div', { className: 'min-h-screen bg-gray-100 p-6' }, [
+                    h('div', { key: 'header', className: 'max-w-4xl mx-auto bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-lg mb-6' }, [
+                        h('h1', { className: 'text-2xl font-bold' }, '🌳 Property Walk-Through'),
+                        h('p', { className: 'text-green-100 mt-1' }, clientInfo.address)
+                    ]),
+                    
+                    // Photo Upload
+                    h('div', { key: 'camera', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mb-6' }, [
+                        h('h3', { className: 'text-xl font-bold mb-4 flex items-center gap-2' }, [
+                            h(Camera, { key: 'icon' }),
+                            h('span', { key: 'text' }, 'Photo Documentation')
+                        ]),
+                        h('input', {
+                            key: 'file-input',
+                            ref: fileInputRef,
+                            type: 'file',
+                            accept: 'image/*',
+                            capture: 'environment',
+                            onChange: handlePhotoUpload,
+                            style: { display: 'none' }
+                        }),
+                        h('button', {
+                            key: 'photo-btn',
+                            onClick: () => fileInputRef.current && fileInputRef.current.click(),
+                            className: 'w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2'
+                        }, [h(Camera, { key: 'icon' }), h('span', { key: 'text' }, 'Take Photo')]),
+                        photos.length > 0 && h('div', { key: 'photos', className: 'mt-4 grid grid-cols-3 gap-4' },
+                            photos.map(photo =>
+                                h('div', { key: photo.id, className: 'relative' }, [
+                                    h('img', { key: 'img', src: photo.data, className: 'w-full h-32 object-cover rounded border' }),
+                                    h('div', { key: 'loc', className: 'text-xs text-gray-600 mt-1' }, photo.location)
+                                ])
+                            )
+                        )
+                    ]),
+                    
+                    // Add Plants with SPRINT 1: Priority Display
+                    h('div', { key: 'plants', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mb-6' }, [
+                        h('h3', { className: 'text-xl font-bold mb-4' }, 'Document Plants'),
+                        h('div', { className: 'space-y-4' }, [
+                            h('div', { key: 'location' }, [
+                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Location'),
+                                h('select', {
+                                    value: newPlant.location,
+                                    onChange: e => setNewPlant({ ...newPlant, location: e.target.value }),
+                                    className: 'w-full p-3 border rounded-lg'
+                                }, LOCATIONS.map(loc =>
+                                    h('option', { key: loc, value: loc }, loc)
+                                ))
+                            ]),
+                            h('div', { key: 'plant-details', className: 'grid grid-cols-2 gap-4' }, [
+                                h('div', { key: 'name' }, [
+                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'Plant Name'),
+                                    h('select', {
+                                        value: newPlant.name,
+                                        onChange: e => setNewPlant({ ...newPlant, name: e.target.value }),
+                                        className: 'w-full p-3 border rounded-lg'
+                                    }, [
+                                        h('option', { key: 'empty', value: '' }, 'Select plant...'),
+                                        ...Object.keys(PLANTS).sort().map(name =>
+                                            h('option', { key: name, value: name }, 
+                                                `${name}${PLANTS[name].native ? ' ★' : ''}`
+                                            )
+                                        )
+                                    ])
+                                ]),
+                                h('div', { key: 'condition' }, [
+                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'Condition'),
+                                    h('select', {
+                                        value: newPlant.condition,
+                                        onChange: e => handleConditionChange(e.target.value), // SPRINT 1: Auto-update priority
+                                        className: 'w-full p-3 border rounded-lg',
+                                        style: { borderLeft: `4px solid ${newPlant.priority.color}` } // SPRINT 1: Color indicator
+                                    }, CONDITIONS.map(c =>
+                                        h('option', { key: c, value: c }, c)
+                                    ))
+                                ])
+                            ]),
+                            // SPRINT 1: Show auto-assigned priority
+                            h('div', { 
+                                key: 'priority-indicator', 
+                                className: 'p-3 rounded-lg flex items-center gap-2',
+                                style: { 
+                                    backgroundColor: `${newPlant.priority.color}15`,
+                                    borderLeft: `4px solid ${newPlant.priority.color}`
+                                }
+                            }, [
+                                h(AlertCircle, { key: 'icon', size: 16 }),
+                                h('span', { key: 'text', className: 'text-sm font-semibold' }, 
+                                    `Priority: ${newPlant.priority.level} | ${newPlant.priority.timeline}`
+                                )
+                            ]),
+                            h('div', { key: 'notes' }, [
+                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Notes (optional)'),
+                                h('textarea', {
+                                    value: newPlant.notes || '',
+                                    onChange: e => setNewPlant({ ...newPlant, notes: e.target.value }),
+                                    className: 'w-full p-3 border rounded-lg',
+                                    rows: 2,
+                                    placeholder: 'Any observations or recommendations for this plant...'
+                                })
+                            ]),
+                            h('button', {
+                                onClick: addPlant,
+                                disabled: !newPlant.name,
+                                className: 'w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center gap-2'
+                            }, [h(Plus, { key: 'icon' }), h('span', { key: 'text' }, 'Add Plant')])
+                        ]),
+                        
+                        // SPRINT 2: Native percentage display
+                        plants.length > 0 && h('div', { key: 'native-stats', className: 'mt-6 p-4 bg-green-50 border-2 border-green-600 rounded-lg' }, [
+                            h('div', { key: 'header', className: 'flex items-center justify-between' }, [
+                                h('span', { key: 'label', className: 'text-sm font-semibold text-green-900' }, 'Native Plant Analysis'),
+                                h('span', { key: 'percentage', className: 'text-2xl font-bold text-green-600' }, 
+                                    `${Math.round((plants.filter(p => p.native).length / plants.length) * 100)}% Native`
+                                )
+                            ]),
+                            h('div', { key: 'breakdown', className: 'text-sm text-green-700 mt-2' },
+                                `${plants.filter(p => p.native).length} native · ${plants.filter(p => !p.native).length} adapted · ${plants.length} total plants documented`
+                            )
+                        ]),
+                        
+                        // SPRINT 1: Plant list with priority badges
+                        plants.length > 0 && h('div', { key: 'list', className: 'mt-4 space-y-3' },
+                            plants.map(plant =>
+                                h('div', { 
+                                    key: plant.id, 
+                                    className: 'p-4 border rounded-lg bg-gray-50',
+                                    style: { borderLeft: `4px solid ${plant.priority.color}` }
+                                }, [
+                                    h('div', { key: 'header', className: 'flex justify-between items-start' }, [
+                                        h('div', { key: 'name', className: 'font-semibold text-lg flex items-center gap-2' }, [
+                                            h('span', { key: 'text' }, plant.name),
+                                            plant.native && h('span', { key: 'native-badge', className: 'text-xs bg-green-600 text-white px-2 py-1 rounded' }, '★ Native'),
+                                            // SPRINT 1: Priority badge
+                                            h('span', { 
+                                                key: 'priority-badge', 
+                                                className: 'text-xs text-white px-2 py-1 rounded font-semibold',
+                                                style: { backgroundColor: plant.priority.color }
+                                            }, plant.priority.level)
+                                        ]),
+                                        h('div', { key: 'loc', className: 'text-xs text-gray-500' }, plant.location)
+                                    ]),
+                                    h('div', { key: 'details', className: 'text-sm text-gray-600 mt-2' }, [
+                                        h('span', { key: 'cond' }, `${plant.condition}`),
+                                        plant.type && h('span', { key: 'type' }, ` | ${plant.type}`),
+                                        plant.water && h('span', { key: 'water' }, ` | Water: ${plant.water}`)
+                                    ]),
+                                    // SPRINT 1: Show timeline
+                                    h('div', { key: 'timeline', className: 'text-xs text-gray-500 mt-1 italic' }, 
+                                        `Timeline: ${plant.priority.timeline}`
+                                    ),
+                                    plant.notes && h('div', { key: 'notes', className: 'text-sm text-gray-500 mt-2 italic' }, 
+                                        `Note: ${plant.notes}`
+                                    )
+                                ])
+                            )
+                        )
+                    ]),
+                    
+                    // Observations
+                    h('div', { key: 'observations', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mb-6' }, [
+                        h('h3', { className: 'text-xl font-bold mb-4' }, 'Overall Observations'),
+                        h('textarea', {
+                            value: overallNotes,
+                            onChange: e => setOverallNotes(e.target.value),
+                            className: 'w-full p-3 border rounded-lg',
+                            rows: 4,
+                            placeholder: 'Overall landscape observations, irrigation notes, hardscaping observations...'
+                        }),
+                        h('h3', { className: 'text-xl font-bold mt-6 mb-4' }, 'Priority Recommendations'),
+                        h('textarea', {
+                            value: priorities,
+                            onChange: e => setPriorities(e.target.value),
+                            className: 'w-full p-3 border rounded-lg',
+                            rows: 4,
+                            placeholder: 'Recommended next steps based on client priorities, skill level, and time commitment...'
+                        })
+                    ]),
+                    
+                    // Actions
+                    h('div', { key: 'actions', className: 'max-w-4xl mx-auto flex gap-4' }, [
+                        h('button', {
+                            key: 'back',
+                            onClick: () => setStep('client'),
+                            className: 'flex-1 bg-gray-500 text-white py-4 rounded-lg font-semibold hover:bg-gray-600'
+                        }, '← Back to Client Info'),
+                        h('button', {
+                            key: 'report',
+                            onClick: exportPDF,
+                            disabled: plants.length === 0,
+                            className: 'flex-1 bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center gap-2'
+                        }, [h(Download, { key: 'icon' }), h('span', { key: 'text' }, 'Generate Report')])
+                    ])
+                ]);
+            }
+        }
+
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>
