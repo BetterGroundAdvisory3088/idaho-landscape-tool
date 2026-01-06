@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Landscape Assessment">
     <meta name="theme-color" content="#16a34a">
-    <title>Idaho Landscaping Assessment Tool v4.8</title>
+    <title>Idaho Landscaping Assessment Tool v4.9</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -34,7 +34,7 @@
     <div id="loading">
         <div class="loader"></div>
         <h2 style="margin-top: 2rem; font-size: 1.5rem; font-weight: bold;">Loading Assessment Tool...</h2>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9;">v4.8 - Professional Reports + Task Classification</p>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9;">v4.9 - Genus Care Intelligence + Care Calendar</p>
     </div>
     <div id="root"></div>
 
@@ -87,11 +87,371 @@
             h('line', { key: 'l2', x1: '12', y1: '16', x2: '12.01', y2: '16' })
         ]);
 
-        // PWA v4.8: Professional Reports + Task Classification
-        // - Fixed PDF encoding (no emoji/special chars)
-        // - Client-focused Executive Summary
-        // - DIY vs Professional task classification
-        // - Time estimates for homeowner tasks
+        // =====================================================
+        // v4.9: GENUS-BASED CARE INTELLIGENCE DATABASE
+        // =====================================================
+        // Maps genus names to detailed care instructions
+        // Used for both Quick Reference and Care Calendar appendix
+        const GENUS_CARE = {
+            'Rosa': {
+                commonName: 'Roses',
+                quick: 'Prune early spring when leaves emerge. Water deeply, allow soil to dry between waterings.',
+                pruning: {
+                    when: 'Early spring when leaves begin to emerge (March-April in Idaho)',
+                    how: 'Remove dead, damaged, and diseased canes first. Cut to outward-facing bud at 45-degree angle. Remove crossing branches.',
+                    avoid: 'Do NOT prune in fall - encourages tender growth vulnerable to winter kill'
+                },
+                watering: {
+                    frequency: 'Deep soak 1-2x per week during growing season',
+                    method: 'Water at base, avoid wetting foliage. Morning watering preferred.',
+                    notes: 'Allow top 2-3 inches of soil to dry between waterings'
+                },
+                fertilizing: 'Rosetone or similar monthly May-September. Reduce in late summer to harden off for winter.',
+                diseases: ['Black spot', 'Powdery mildew', 'Rose rosette virus'],
+                idahoNotes: 'Choose hardy varieties for Zone 5b. Mulch heavily in fall for winter protection.'
+            },
+            'Acer': {
+                commonName: 'Maples',
+                quick: 'Prune in late summer/early fall ONLY. Water deeply during drought. Watch for aphids.',
+                pruning: {
+                    when: 'Late summer to early fall (August-September) - maples bleed sap if pruned in spring',
+                    how: 'Remove dead wood and crossing branches. Maintain natural form. Never top maples.',
+                    avoid: 'Avoid pruning January-May (heavy sap bleeding)'
+                },
+                watering: {
+                    frequency: 'Weekly deep watering during establishment (2-3 years)',
+                    method: 'Slow, deep soaking at drip line. Avoid trunk.',
+                    notes: 'Mature trees usually drought-tolerant once established'
+                },
+                fertilizing: 'Slow-release balanced fertilizer in early spring if needed. Often unnecessary for established trees.',
+                diseases: ['Verticillium wilt', 'Tar spot', 'Anthracnose'],
+                idahoNotes: 'Japanese maples need afternoon shade in Treasure Valley. Bigtooth maple is native and more heat-tolerant.'
+            },
+            'Pinus': {
+                commonName: 'Pines',
+                quick: 'Prune ONLY October-January (dormant). Never remove more than 1/3 of crown. Very drought-tolerant once established.',
+                pruning: {
+                    when: 'October through January ONLY - dormant season',
+                    how: 'Remove dead branches at collar. Can pinch candles in spring to control size.',
+                    avoid: 'Never prune March-September - pitch moths active, disease entry'
+                },
+                watering: {
+                    frequency: 'Deep water monthly during first 2 years, then only during extended drought',
+                    method: 'Slow soak at drip line',
+                    notes: 'Overwatering causes root rot - pines prefer dry conditions'
+                },
+                fertilizing: 'Generally not needed. If yellowing, use acidifying fertilizer.',
+                diseases: ['Pine wilt', 'Dothistroma needle blight', 'Western gall rust'],
+                idahoNotes: 'Ponderosa and Limber Pine are native and excellent choices. Avoid Austrian Pine (disease-prone in Idaho).'
+            },
+            'Picea': {
+                commonName: 'Spruces',
+                quick: 'Minimal pruning needed. Water deeply but infrequently. Watch for spider mites in hot weather.',
+                pruning: {
+                    when: 'Late winter to early spring before new growth',
+                    how: 'Remove dead branches only. Can shear for formal shape in June.',
+                    avoid: 'Never cut into old wood - will not regenerate'
+                },
+                watering: {
+                    frequency: 'Deep water every 2-3 weeks during dry periods',
+                    method: 'Slow deep soak at drip line',
+                    notes: 'More water-demanding than pines. Mulch to retain moisture.'
+                },
+                fertilizing: 'Acidifying fertilizer in spring if needles yellow.',
+                diseases: ['Cytospora canker', 'Rhizosphaera needle cast', 'Spider mites'],
+                idahoNotes: 'Blue spruce struggles in hot, dry sites. Plant in areas with afternoon shade or irrigation.'
+            },
+            'Juniperus': {
+                commonName: 'Junipers',
+                quick: 'Prune anytime except extreme cold. Extremely drought-tolerant. Do NOT overwater.',
+                pruning: {
+                    when: 'Anytime during growing season (avoid deep winter)',
+                    how: 'Selective pruning to maintain shape. Can be sheared for formal hedges.',
+                    avoid: 'Never cut back to bare wood - will not regenerate'
+                },
+                watering: {
+                    frequency: 'Established plants rarely need supplemental water',
+                    method: 'If needed, deep soak monthly during extreme drought',
+                    notes: 'Overwatering is the #1 killer of junipers'
+                },
+                fertilizing: 'Generally not needed. Light application of balanced fertilizer in spring if growth is slow.',
+                diseases: ['Cedar-apple rust', 'Juniper tip blight', 'Phytophthora root rot (from overwatering)'],
+                idahoNotes: 'Rocky Mountain Juniper is native and supremely adapted. Excellent screening plant.'
+            },
+            'Artemisia': {
+                commonName: 'Sagebrush/Sage',
+                quick: 'Light pruning in spring only. Extremely drought-tolerant - do NOT overwater.',
+                pruning: {
+                    when: 'Early spring as new growth emerges (April)',
+                    how: 'Light tip pruning to shape. Remove winter-damaged growth.',
+                    avoid: 'Never prune into old wood - may not recover'
+                },
+                watering: {
+                    frequency: 'Rarely needed once established',
+                    method: 'If watering, deep soak infrequently',
+                    notes: 'Native to dry conditions - overwatering causes root rot'
+                },
+                fertilizing: 'Do not fertilize - adapted to poor soils.',
+                diseases: ['Root rot (from overwatering)', 'Rarely affected by pests'],
+                idahoNotes: 'Big sagebrush is the iconic Idaho native. Provides critical wildlife habitat.'
+            },
+            'Amelanchier': {
+                commonName: 'Serviceberry',
+                quick: 'Prune after flowering in late spring. Moderate water needs. Edible berries attract birds.',
+                pruning: {
+                    when: 'Immediately after flowering (June) or late winter',
+                    how: 'Remove oldest stems at base to encourage new growth. Thin for air circulation.',
+                    avoid: 'Heavy pruning reduces berry production'
+                },
+                watering: {
+                    frequency: 'Weekly during establishment, then every 2 weeks in summer',
+                    method: 'Deep soak at base',
+                    notes: 'More drought-tolerant than many fruit-bearing shrubs'
+                },
+                fertilizing: 'Light application of balanced fertilizer in early spring.',
+                diseases: ['Fire blight', 'Cedar-serviceberry rust', 'Powdery mildew'],
+                idahoNotes: 'Saskatoon serviceberry is native and produces excellent fruit for wildlife and humans.'
+            },
+            'Physocarpus': {
+                commonName: 'Ninebark',
+                quick: 'Prune after flowering. Very adaptable - tolerates drought once established. Disease-resistant.',
+                pruning: {
+                    when: 'After flowering (late June) or late winter for rejuvenation',
+                    how: 'Remove 1/3 of oldest stems at base annually. Shape as needed.',
+                    avoid: 'Shearing destroys natural arching form'
+                },
+                watering: {
+                    frequency: 'Regular water during establishment, then drought-tolerant',
+                    method: 'Deep soak weekly when young',
+                    notes: 'Very adaptable to wet or dry conditions'
+                },
+                fertilizing: 'Light fertilizer in spring if desired. Often unnecessary.',
+                diseases: ['Generally disease-free', 'Occasional powdery mildew in humid conditions'],
+                idahoNotes: 'Native ninebark is extremely well-adapted. Cultivars like Diablo offer purple foliage.'
+            },
+            'Penstemon': {
+                commonName: 'Penstemon/Beardtongue',
+                quick: 'Cut back in late fall or early spring. Very drought-tolerant. Excellent pollinator plant.',
+                pruning: {
+                    when: 'Late fall after frost or early spring before new growth',
+                    how: 'Cut back to 4-6 inches. Deadhead spent flowers to extend bloom.',
+                    avoid: 'Do not prune during active growth'
+                },
+                watering: {
+                    frequency: 'Established plants need little to no supplemental water',
+                    method: 'If needed, water deeply and infrequently',
+                    notes: 'Overwatering causes crown rot'
+                },
+                fertilizing: 'Do not fertilize - thrives in poor soil. Rich soil causes leggy growth.',
+                diseases: ['Crown rot (from overwatering)', 'Generally pest-free'],
+                idahoNotes: 'Over 20 Penstemon species are native to Idaho. Firecracker penstemon is especially showy.'
+            },
+            'Echinacea': {
+                commonName: 'Coneflowers',
+                quick: 'Cut back in late fall or early spring. Drought-tolerant. Leave seed heads for birds.',
+                pruning: {
+                    when: 'Late fall or early spring',
+                    how: 'Cut to ground level. Deadhead during season for extended blooming.',
+                    avoid: 'Can leave standing over winter for wildlife value'
+                },
+                watering: {
+                    frequency: 'Weekly during establishment, then only during drought',
+                    method: 'Water at base, avoid foliage',
+                    notes: 'Drought-tolerant once established'
+                },
+                fertilizing: 'Light compost in spring. Avoid heavy fertilization.',
+                diseases: ['Aster yellows', 'Powdery mildew', 'Japanese beetles'],
+                idahoNotes: 'Purple coneflower is native to prairies and thrives in Idaho. Excellent pollinator plant.'
+            },
+            'Ribes': {
+                commonName: 'Currants',
+                quick: 'Prune in late winter. Moderate water needs. Watch for powdery mildew.',
+                pruning: {
+                    when: 'Late winter while dormant (February-March)',
+                    how: 'Remove oldest canes at base. Keep 6-8 healthy canes per plant.',
+                    avoid: 'Do not prune in fall - delays dormancy'
+                },
+                watering: {
+                    frequency: 'Regular water during fruiting, reduce in fall',
+                    method: 'Drip irrigation preferred to avoid foliar diseases',
+                    notes: 'Consistent moisture improves fruit production'
+                },
+                fertilizing: 'Balanced fertilizer in early spring before growth.',
+                diseases: ['Powdery mildew', 'White pine blister rust (alternate host)', 'Aphids'],
+                idahoNotes: 'Golden currant is native and drought-tolerant. Red-flowering currant adds spring color.'
+            },
+            'Sambucus': {
+                commonName: 'Elderberry',
+                quick: 'Can prune hard in late winter. Moderate to high water needs. Berries for wildlife.',
+                pruning: {
+                    when: 'Late winter (February-March)',
+                    how: 'Can cut to ground for rejuvenation. Otherwise remove oldest canes.',
+                    avoid: 'Flowers on previous year\'s growth - heavy pruning reduces flowers'
+                },
+                watering: {
+                    frequency: 'Regular water, especially during establishment and fruiting',
+                    method: 'Keep soil consistently moist but not waterlogged',
+                    notes: 'Native to riparian areas - needs more water than most natives'
+                },
+                fertilizing: 'Compost or balanced fertilizer in spring.',
+                diseases: ['Canker', 'Leaf spot', 'Borers'],
+                idahoNotes: 'Blue elderberry is native to Idaho. Tolerates wet soils. Berries must be cooked before eating.'
+            },
+            'Syringa': {
+                commonName: 'Lilac/Mock Orange',
+                quick: 'Prune immediately after flowering. Moderate water. Watch for powdery mildew.',
+                pruning: {
+                    when: 'Immediately after flowering (May-June)',
+                    how: 'Remove spent blooms. Thin oldest stems at base. Rejuvenate by cutting 1/3 of stems to ground.',
+                    avoid: 'Late pruning removes next year\'s flower buds'
+                },
+                watering: {
+                    frequency: 'Weekly during hot weather, less in spring/fall',
+                    method: 'Deep soak at base',
+                    notes: 'Established plants fairly drought-tolerant'
+                },
+                fertilizing: 'Light fertilizer in spring. Avoid high nitrogen (reduces flowering).',
+                diseases: ['Powdery mildew', 'Bacterial blight', 'Borers'],
+                idahoNotes: 'Syringa (Mock Orange) is Idaho\'s state flower! Common lilac also thrives in Idaho climate.'
+            },
+            'Prunus': {
+                commonName: 'Cherries/Plums',
+                quick: 'Prune in late winter. Watch for borers and bacterial canker. Moderate water needs.',
+                pruning: {
+                    when: 'Late winter (February-March) when dormant',
+                    how: 'Remove dead, diseased, crossing branches. Open center for air circulation.',
+                    avoid: 'Avoid fall pruning - invites disease'
+                },
+                watering: {
+                    frequency: 'Regular deep watering during fruit development',
+                    method: 'Drip or soaker hose at drip line',
+                    notes: 'Reduce water after harvest to harden off for winter'
+                },
+                fertilizing: 'Balanced fertilizer in early spring before bloom.',
+                diseases: ['Bacterial canker', 'Brown rot', 'Borers', 'Black knot'],
+                idahoNotes: 'Chokecherry and bitter cherry are natives. Ornamental cherries need protected sites.'
+            }
+        };
+
+        // v4.9: Map plant names to genus for care lookup
+        const PLANT_TO_GENUS = {
+            'Wild Rose': 'Rosa', 'Woods Rose': 'Rosa',
+            'Autumn Blaze Maple': 'Acer', 'Big-tooth Maple': 'Acer', 'Bigtooth Maple': 'Acer',
+            'Japanese Maple': 'Acer', 'Bloodgood Japanese Maple': 'Acer', 'Emperor I Japanese Maple': 'Acer',
+            'Rocky Mountain Maple': 'Acer',
+            'Ponderosa Pine': 'Pinus', 'Pinyon Pine': 'Pinus', 'Limber Pine': 'Pinus',
+            'Bristlecone Pine': 'Pinus', 'Western White Pine': 'Pinus', 'Chief Joseph Lodgepole Pine': 'Pinus',
+            'Blue Spruce': 'Picea', 'Engelmann Spruce': 'Picea', 'Fat Albert Blue Spruce': 'Picea',
+            'Rocky Mountain Juniper': 'Juniperus', 'Western Juniper': 'Juniperus',
+            'Big Sagebrush': 'Artemisia', 'Silver Sagebrush': 'Artemisia', 'Fringed Sagebrush': 'Artemisia',
+            'Louisiana Sage': 'Artemisia',
+            'Serviceberry': 'Amelanchier', 'Saskatoon Serviceberry': 'Amelanchier',
+            'Ninebark': 'Physocarpus',
+            'Penstemon': 'Penstemon',
+            'Purple Coneflower': 'Echinacea', 'Coneflower (Echinacea)': 'Echinacea',
+            'Golden Currant': 'Ribes', 'Wax Currant': 'Ribes', 'Red-flowering Currant': 'Ribes',
+            'Blue Elderberry': 'Sambucus',
+            'Lilac': 'Syringa', 'Syringa (Mock Orange)': 'Syringa',
+            'Chokecherry': 'Prunus', 'Bitter Cherry': 'Prunus',
+            'Douglas Fir': 'Pseudotsuga', 'Subalpine Fir': 'Abies'
+        };
+
+        // Additional genus care for common types without specific genus data
+        const TYPE_CARE = {
+            'Ornamental Grass': {
+                quick: 'Cut back in late winter before new growth. Most are drought-tolerant once established.',
+                pruning: { when: 'Late February to early March', how: 'Cut to 4-6 inches above ground', avoid: 'Do not cut in fall - provides winter interest and protection' },
+                watering: { frequency: 'Weekly during establishment, then minimal', method: 'Deep soak at base', notes: 'Most native grasses extremely drought-tolerant' }
+            },
+            'Perennial': {
+                quick: 'Cut back dead foliage in spring. Water needs vary by species. Deadhead for extended bloom.',
+                pruning: { when: 'Early spring as new growth emerges', how: 'Remove dead material to crown', avoid: 'Some prefer fall cleanup, others leave for winter interest' },
+                watering: { frequency: 'Varies by species - check individual plant needs', method: 'Water at base, avoid foliage', notes: 'Native perennials generally more drought-tolerant' }
+            },
+            'Evergreen Shrub': {
+                quick: 'Light pruning anytime. Most are drought-tolerant. Avoid heavy shearing.',
+                pruning: { when: 'After flowering or in early spring', how: 'Selective pruning to maintain natural form', avoid: 'Avoid cutting into bare wood on most species' },
+                watering: { frequency: 'Regular during establishment, then occasional deep watering', method: 'Deep soak at drip line', notes: 'Most established evergreens are drought-tolerant' }
+            },
+            'Deciduous Shrub': {
+                quick: 'Prune after flowering or in late winter. Water needs vary. Remove oldest stems annually.',
+                pruning: { when: 'Flowering shrubs: after bloom. Non-flowering: late winter', how: 'Remove 1/3 of oldest stems at base each year', avoid: 'Avoid shearing - destroys natural form' },
+                watering: { frequency: 'Regular during establishment and hot weather', method: 'Deep soak at base', notes: 'Reduce watering in fall to harden off' }
+            },
+            'Deciduous Tree': {
+                quick: 'Prune in dormant season. Water deeply but infrequently. Mulch to root drip line.',
+                pruning: { when: 'Late winter while dormant (exceptions: maples, birch)', how: 'Remove dead, diseased, crossing branches. Maintain central leader.', avoid: 'Never top trees. Avoid removing more than 25% of canopy.' },
+                watering: { frequency: 'Deep water every 2-3 weeks during drought', method: 'Slow soak at drip line, not trunk', notes: 'Young trees need consistent water for 2-3 years' }
+            },
+            'Evergreen Tree': {
+                quick: 'Minimal pruning needed. Water deeply during dry periods. Mulch but keep away from trunk.',
+                pruning: { when: 'Late winter for most; pines only October-January', how: 'Remove dead branches at collar. Light shaping only.', avoid: 'Never top evergreens. Most will not regenerate from bare wood.' },
+                watering: { frequency: 'Monthly deep water during drought', method: 'Slow soak at drip line', notes: 'Continue watering into fall - evergreens transpire year-round' }
+            }
+        };
+
+        // Get care info for a plant (by genus or type)
+        const getPlantCare = (plantName, plantType) => {
+            const genus = PLANT_TO_GENUS[plantName];
+            if (genus && GENUS_CARE[genus]) {
+                return { ...GENUS_CARE[genus], genus, source: 'genus' };
+            }
+            if (TYPE_CARE[plantType]) {
+                return { ...TYPE_CARE[plantType], genus: null, source: 'type', commonName: plantType };
+            }
+            return null;
+        };
+
+        // =====================================================
+        // SEASONAL CARE CALENDAR DATA
+        // =====================================================
+        const SEASONAL_TASKS = {
+            'Early Spring (March-April)': {
+                'Rosa': 'Begin pruning when buds swell. Remove winter damage.',
+                'Artemisia': 'Light tip pruning as new growth appears.',
+                'Penstemon': 'Cut back old growth before new emerges.',
+                'Echinacea': 'Cut back dead stems to ground level.',
+                'Ornamental Grass': 'Cut back to 4-6 inches before new growth.',
+                'Perennial': 'Remove dead foliage, divide overcrowded plants.',
+                'Deciduous Shrub': 'Prune non-flowering shrubs. Apply compost.',
+                'Deciduous Tree': 'Complete dormant pruning. Apply mulch.'
+            },
+            'Late Spring (May-June)': {
+                'Rosa': 'Begin fertilizing. Watch for aphids and black spot.',
+                'Syringa': 'Prune immediately after flowering.',
+                'Amelanchier': 'Prune after flowering if needed.',
+                'Physocarpus': 'Prune after flowering to shape.',
+                'Ribes': 'Watch for powdery mildew. Water during fruit set.',
+                'Perennial': 'Deadhead spent blooms. Stake tall varieties.'
+            },
+            'Summer (July-August)': {
+                'Acer': 'Best time to prune maples (late Aug-Sept).',
+                'Rosa': 'Continue deadheading. Deep water during heat.',
+                'Picea': 'Watch for spider mites in hot weather.',
+                'Juniperus': 'Can shape/prune if needed. Minimal water.',
+                'Pinus': 'No pruning! Can pinch candles for size control.',
+                'Perennial': 'Water deeply during drought. Continue deadheading.'
+            },
+            'Fall (September-October)': {
+                'Rosa': 'Stop fertilizing. Reduce water. Do NOT prune.',
+                'Pinus': 'Begin dormant pruning season (Oct-Jan).',
+                'Deciduous Tree': 'Water deeply before freeze. Apply mulch.',
+                'Evergreen Tree': 'Continue watering until ground freezes.',
+                'Perennial': 'Can leave seed heads for birds and winter interest.'
+            },
+            'Winter (November-February)': {
+                'Rosa': 'Mound mulch around base for protection.',
+                'Pinus': 'Dormant pruning window continues.',
+                'Ribes': 'Prune while dormant (Feb-March).',
+                'Prunus': 'Prune while dormant (Feb-March).',
+                'Deciduous Shrub': 'Plan rejuvenation pruning for late winter.',
+                'Deciduous Tree': 'Prune most species while dormant.'
+            }
+        };
+
+        // =====================================================
+        // PLANT DATABASE (126 plants)
+        // =====================================================
         const PLANTS = {
             'Antelope Bitterbrush': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Purshia tridentata' },
             'Apache Plume': { native: true, type: 'Deciduous Shrub', water: 'Low', sun: 'Full sun', zone: '4', scientificName: 'Fallugia paradoxa' },
@@ -220,10 +580,8 @@
             'Custom Plant': { native: false, type: 'Unknown', water: 'Unknown', sun: 'Unknown', zone: 'Unknown' }
         };
 
-        // v4.8: TASK CLASSIFICATION SYSTEM
-        // Determines if tasks are DIY-friendly or require professional help
+        // Task Classification (from v4.8)
         const TASK_CLASSIFICATION = {
-            // DIY-friendly tasks
             diy: {
                 conditions: ['Needs Pruning', 'Drought Stressed', 'Overgrown'],
                 types: ['Perennial', 'Ornamental Grass', 'Evergreen Groundcover', 'Succulent'],
@@ -233,7 +591,6 @@
                     'Overgrown': { task: 'Cut back and shape', time: '20-45 min per plant' }
                 }
             },
-            // Professional recommended
             professional: {
                 conditions: ['Dead/Dying', 'Diseased', 'Pest Damage', 'Transplant Needed'],
                 types: ['Deciduous Tree', 'Evergreen Tree', 'Evergreen Conifer', 'Small Tree'],
@@ -248,53 +605,20 @@
 
         // Replacement suggestions (from v4.7)
         const REPLACEMENT_SUGGESTIONS = {
-            'Evergreen Shrub': {
-                primary: 'Rocky Mountain Juniper',
-                primaryReason: 'Native, extremely drought-tolerant, excellent screening, cold-hardy',
-                alternatives: ['Curl-leaf Mountain Mahogany', 'Mountain Mahogany', 'Tall Oregon Grape', 'Green Rabbitbrush']
-            },
-            'Deciduous Shrub': {
-                primary: 'Ninebark',
-                primaryReason: 'Native, disease-resistant, colorful foliage, low maintenance',
-                alternatives: ['Serviceberry', 'Golden Currant', 'Chokecherry', 'Woods Rose']
-            },
-            'Deciduous Tree': {
-                primary: 'Autumn Blaze Maple',
-                primaryReason: 'Fast-growing, brilliant fall color, adaptable to Idaho conditions',
-                alternatives: ['Big-tooth Maple', 'Rocky Mountain Maple', 'Netleaf Hackberry', 'Quaking Aspen']
-            },
-            'Evergreen Tree': {
-                primary: 'Ponderosa Pine',
-                primaryReason: 'Native, drought-tolerant once established, iconic Idaho tree',
-                alternatives: ['Rocky Mountain Juniper', 'Blue Spruce', 'Douglas Fir', 'Pinyon Pine']
-            },
-            'Perennial': {
-                primary: 'Penstemon',
-                primaryReason: 'Native, drought-tolerant, pollinator-friendly, long bloom season',
-                alternatives: ['Purple Coneflower', 'Blanket Flower', 'Wild Blue Flax', 'Yarrow']
-            },
-            'Ornamental Grass': {
-                primary: 'Idaho Fescue',
-                primaryReason: 'Native, low water, excellent texture, deer resistant',
-                alternatives: ['Blue Grama', 'Little Bluestem', 'Bluebunch Wheatgrass']
-            },
-            'Evergreen Groundcover': {
-                primary: 'Kinnikinnick',
-                primaryReason: 'Native, evergreen, low-maintenance, excellent erosion control',
-                alternatives: ['Creeping Oregon Grape', 'Sedum', 'Pussytoes']
-            },
-            'Unknown': {
-                primary: 'Consult with specialist',
-                primaryReason: 'Plant type unknown - professional assessment recommended',
-                alternatives: ['Ninebark', 'Penstemon', 'Idaho Fescue']
-            }
+            'Evergreen Shrub': { primary: 'Rocky Mountain Juniper', primaryReason: 'Native, extremely drought-tolerant, excellent screening', alternatives: ['Curl-leaf Mountain Mahogany', 'Mountain Mahogany', 'Tall Oregon Grape'] },
+            'Deciduous Shrub': { primary: 'Ninebark', primaryReason: 'Native, disease-resistant, colorful foliage', alternatives: ['Serviceberry', 'Golden Currant', 'Chokecherry'] },
+            'Deciduous Tree': { primary: 'Autumn Blaze Maple', primaryReason: 'Fast-growing, brilliant fall color', alternatives: ['Big-tooth Maple', 'Rocky Mountain Maple', 'Netleaf Hackberry'] },
+            'Evergreen Tree': { primary: 'Ponderosa Pine', primaryReason: 'Native, drought-tolerant once established', alternatives: ['Rocky Mountain Juniper', 'Blue Spruce', 'Douglas Fir'] },
+            'Perennial': { primary: 'Penstemon', primaryReason: 'Native, drought-tolerant, pollinator-friendly', alternatives: ['Purple Coneflower', 'Blanket Flower', 'Wild Blue Flax'] },
+            'Ornamental Grass': { primary: 'Idaho Fescue', primaryReason: 'Native, low water, excellent texture', alternatives: ['Blue Grama', 'Little Bluestem', 'Bluebunch Wheatgrass'] },
+            'Unknown': { primary: 'Consult with specialist', primaryReason: 'Professional assessment recommended', alternatives: ['Ninebark', 'Penstemon', 'Idaho Fescue'] }
         };
 
         const SPECIFIC_REPLACEMENTS = {
-            'Arborvitae': { primary: 'Rocky Mountain Juniper', reason: 'Native alternative with better drought tolerance and disease resistance', alternatives: ['Curl-leaf Mountain Mahogany', 'Boxwood', 'Tall Oregon Grape'] },
-            'Hydrangea': { primary: 'Ninebark', reason: 'Much lower water needs, similar form, native to Idaho', alternatives: ['Serviceberry', 'Ocean Spray', 'Syringa (Mock Orange)'] },
-            'Hosta': { primary: 'Wild Blue Flax', reason: 'Better adapted to Idaho sun and lower water needs', alternatives: ['Penstemon', 'Western Columbine'] },
-            'Japanese Maple': { primary: 'Big-tooth Maple', reason: 'Native maple with similar aesthetic, better cold hardiness', alternatives: ['Rocky Mountain Maple', 'Bloodgood Japanese Maple'] }
+            'Arborvitae': { primary: 'Rocky Mountain Juniper', reason: 'Native with better drought tolerance and disease resistance', alternatives: ['Curl-leaf Mountain Mahogany', 'Boxwood'] },
+            'Hydrangea': { primary: 'Ninebark', reason: 'Much lower water needs, similar form, native', alternatives: ['Serviceberry', 'Ocean Spray'] },
+            'Hosta': { primary: 'Wild Blue Flax', reason: 'Better adapted to Idaho sun and lower water', alternatives: ['Penstemon', 'Western Columbine'] },
+            'Japanese Maple': { primary: 'Big-tooth Maple', reason: 'Native maple with similar aesthetic, better cold hardiness', alternatives: ['Rocky Mountain Maple'] }
         };
 
         const LOCATIONS = [
@@ -325,9 +649,7 @@
             'Healthy/Young': { level: 'LOW', color: '#16a34a', timeline: 'Routine maintenance' }
         };
 
-        const getPriority = (condition) => {
-            return PRIORITY_MAP[condition] || { level: 'MEDIUM', color: '#ca8a04', timeline: 'Review needed' };
-        };
+        const getPriority = (condition) => PRIORITY_MAP[condition] || { level: 'MEDIUM', color: '#ca8a04', timeline: 'Review needed' };
 
         const getReplacementSuggestion = (plantName, plantType, condition) => {
             const needsReplacement = ['Dead/Dying', 'Diseased', 'Pest Damage'].includes(condition);
@@ -337,60 +659,27 @@
             return { primary: typeReplacement.primary, reason: typeReplacement.primaryReason, alternatives: typeReplacement.alternatives };
         };
 
-        // v4.8: Classify task as DIY or Professional
         const classifyTask = (plant) => {
             const isTree = ['Deciduous Tree', 'Evergreen Tree', 'Evergreen Conifer', 'Small Tree'].includes(plant.type);
             const isCritical = ['Dead/Dying', 'Diseased', 'Pest Damage'].includes(plant.condition);
             const needsTransplant = plant.condition === 'Transplant Needed';
             
-            // Trees almost always need professional help
             if (isTree && plant.condition !== 'Healthy/Mature' && plant.condition !== 'Healthy/Young') {
-                return {
-                    type: 'professional',
-                    reason: isTree ? 'Tree work requires proper equipment and safety training' : TASK_CLASSIFICATION.professional.reasons[plant.condition],
-                    task: isCritical ? `Remove and replace ${plant.name}` : `Professional ${plant.condition.toLowerCase()} care for ${plant.name}`
-                };
+                return { type: 'professional', reason: 'Tree work requires proper equipment and safety training', task: isCritical ? `Remove and replace ${plant.name}` : `Professional care for ${plant.name}` };
             }
-            
-            // Critical conditions need professional help
             if (isCritical || needsTransplant) {
-                return {
-                    type: 'professional',
-                    reason: TASK_CLASSIFICATION.professional.reasons[plant.condition] || 'Professional expertise recommended',
-                    task: isCritical ? `Treatment/removal of ${plant.name}` : `Transplant ${plant.name}`
-                };
+                return { type: 'professional', reason: TASK_CLASSIFICATION.professional.reasons[plant.condition] || 'Professional expertise recommended', task: isCritical ? `Treatment/removal of ${plant.name}` : `Transplant ${plant.name}` };
             }
-            
-            // DIY-friendly conditions for non-trees
             if (TASK_CLASSIFICATION.diy.conditions.includes(plant.condition)) {
                 const taskInfo = TASK_CLASSIFICATION.diy.tasks[plant.condition];
-                return {
-                    type: 'diy',
-                    task: `${taskInfo.task} - ${plant.name}`,
-                    time: taskInfo.time,
-                    location: plant.location
-                };
+                return { type: 'diy', task: `${taskInfo.task} - ${plant.name}`, time: taskInfo.time, location: plant.location };
             }
-            
-            // Healthy plants - routine maintenance
             if (plant.condition === 'Healthy/Mature' || plant.condition === 'Healthy/Young') {
-                return {
-                    type: 'routine',
-                    task: `Continue routine care for ${plant.name}`,
-                    time: 'Seasonal'
-                };
+                return { type: 'routine', task: `Continue routine care for ${plant.name}`, time: 'Seasonal' };
             }
-            
-            // Default to DIY for medium priority
-            return {
-                type: 'diy',
-                task: `Address ${plant.condition.toLowerCase()} - ${plant.name}`,
-                time: '30-60 min',
-                location: plant.location
-            };
+            return { type: 'diy', task: `Address ${plant.condition.toLowerCase()} - ${plant.name}`, time: '30-60 min', location: plant.location };
         };
 
-        // Image compression (from v4.7)
         const compressImage = (dataUrl, maxWidth = 1200, quality = 0.7) => {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -398,14 +687,9 @@
                     try {
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        let width = img.width;
-                        let height = img.height;
-                        if (width > maxWidth) {
-                            height = (height * maxWidth) / width;
-                            width = maxWidth;
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
+                        let width = img.width, height = img.height;
+                        if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
+                        canvas.width = width; canvas.height = height;
                         ctx.drawImage(img, 0, 0, width, height);
                         resolve(canvas.toDataURL('image/jpeg', quality));
                     } catch (err) { reject(err); }
@@ -419,30 +703,20 @@
             const [step, setStep] = useState('client');
             const [clientInfo, setClientInfo] = useState({ name: '', address: '', city: 'Boise', phone: '', zone: '5b' });
             const [plants, setPlants] = useState([]);
-            const [newPlant, setNewPlant] = useState({ 
-                name: '', location: LOCATIONS[0], condition: 'Healthy/Mature', notes: '', qty: 1,
-                priority: getPriority('Healthy/Mature'), replacement: null, customReplacement: ''
-            });
+            const [newPlant, setNewPlant] = useState({ name: '', location: LOCATIONS[0], condition: 'Healthy/Mature', notes: '', qty: 1, priority: getPriority('Healthy/Mature'), replacement: null, customReplacement: '' });
             const [photos, setPhotos] = useState([]);
             const [overallNotes, setOverallNotes] = useState('');
             const [priorities, setPriorities] = useState('');
             const [isGenerating, setIsGenerating] = useState(false);
             const fileInputRef = useRef(null);
 
-            useEffect(() => {
-                setTimeout(() => {
-                    const loading = document.getElementById('loading');
-                    if (loading) loading.style.display = 'none';
-                }, 500);
-            }, []);
+            useEffect(() => { setTimeout(() => { const loading = document.getElementById('loading'); if (loading) loading.style.display = 'none'; }, 500); }, []);
 
             const handlePhotoUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = (event) => {
-                        setPhotos([...photos, { id: Date.now(), data: event.target.result, location: newPlant.location }]);
-                    };
+                    reader.onload = (event) => { setPhotos([...photos, { id: Date.now(), data: event.target.result, location: newPlant.location }]); };
                     reader.readAsDataURL(file);
                 }
             };
@@ -452,18 +726,8 @@
                 const plantData = PLANTS[newPlant.name] || {};
                 const priority = getPriority(newPlant.condition);
                 const replacement = getReplacementSuggestion(newPlant.name, plantData.type, newPlant.condition);
-                
-                setPlants([...plants, { 
-                    ...newPlant, ...plantData, priority,
-                    replacement: newPlant.customReplacement || (replacement ? replacement.primary : null),
-                    replacementReason: replacement ? replacement.reason : null,
-                    replacementAlternatives: replacement ? replacement.alternatives : null,
-                    id: Date.now() 
-                }]);
-                setNewPlant({ 
-                    name: '', location: newPlant.location, condition: 'Healthy/Mature', notes: '', qty: 1,
-                    priority: getPriority('Healthy/Mature'), replacement: null, customReplacement: ''
-                });
+                setPlants([...plants, { ...newPlant, ...plantData, priority, replacement: newPlant.customReplacement || (replacement ? replacement.primary : null), replacementReason: replacement ? replacement.reason : null, replacementAlternatives: replacement ? replacement.alternatives : null, id: Date.now() }]);
+                setNewPlant({ name: '', location: newPlant.location, condition: 'Healthy/Mature', notes: '', qty: 1, priority: getPriority('Healthy/Mature'), replacement: null, customReplacement: '' });
             };
             
             const handleConditionChange = (condition) => {
@@ -473,18 +737,15 @@
                 setNewPlant({ ...newPlant, condition, priority, replacement: replacement ? replacement.primary : null });
             };
 
-            // v4.8: Professional PDF Export
+            // v4.9: PROFESSIONAL PDF WITH GENUS CARE
             const exportPDF = async () => {
                 setIsGenerating(true);
                 try {
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
                     
-                    // Classify all tasks
-                    const diyTasks = [];
-                    const proTasks = [];
-                    const routineTasks = [];
-                    
+                    // Task classification
+                    const diyTasks = [], proTasks = [], routineTasks = [];
                     plants.forEach(plant => {
                         const classification = classifyTask(plant);
                         if (classification.type === 'diy') diyTasks.push({ ...classification, plant });
@@ -492,7 +753,7 @@
                         else routineTasks.push({ ...classification, plant });
                     });
                     
-                    // Calculate health metrics
+                    // Health metrics
                     const criticalCount = plants.filter(p => p.priority.level === 'CRITICAL').length;
                     const highCount = plants.filter(p => p.priority.level === 'HIGH').length;
                     const healthyCount = plants.filter(p => p.priority.level === 'LOW').length;
@@ -501,8 +762,17 @@
                     const nativeCount = plants.filter(p => p.native).length;
                     const nativePercent = totalPlants > 0 ? Math.round((nativeCount / totalPlants) * 100) : 0;
                     
+                    // Group plants by genus/type for care tips
+                    const plantsByGenus = {};
+                    plants.forEach(plant => {
+                        const genus = PLANT_TO_GENUS[plant.name];
+                        const key = genus || plant.type || 'Other';
+                        if (!plantsByGenus[key]) plantsByGenus[key] = [];
+                        plantsByGenus[key].push(plant);
+                    });
+                    
                     // =====================
-                    // HEADER
+                    // PAGE 1: HEADER
                     // =====================
                     doc.setFillColor(22, 163, 74);
                     doc.rect(0, 0, 210, 35, 'F');
@@ -528,7 +798,6 @@
                     doc.text('Executive Summary', 20, y);
                     y += 10;
                     
-                    // Health Assessment Box
                     doc.setFillColor(240, 253, 244);
                     doc.setDrawColor(22, 163, 74);
                     doc.roundedRect(20, y, 170, 35, 3, 3, 'FD');
@@ -538,19 +807,10 @@
                     doc.setFont(undefined, 'bold');
                     doc.text('Overall Landscape Health:', 25, y + 10);
                     
-                    // Health score with color coding
-                    let healthText = '';
-                    let healthColor = [22, 163, 74];
-                    if (healthScore >= 70) {
-                        healthText = 'Good';
-                        healthColor = [22, 163, 74];
-                    } else if (healthScore >= 40) {
-                        healthText = 'Fair - Some attention needed';
-                        healthColor = [202, 138, 4];
-                    } else {
-                        healthText = 'Needs Attention';
-                        healthColor = [220, 38, 38];
-                    }
+                    let healthText = '', healthColor = [22, 163, 74];
+                    if (healthScore >= 70) { healthText = 'Good'; healthColor = [22, 163, 74]; }
+                    else if (healthScore >= 40) { healthText = 'Fair - Some attention needed'; healthColor = [202, 138, 4]; }
+                    else { healthText = 'Needs Attention'; healthColor = [220, 38, 38]; }
                     
                     doc.setTextColor(...healthColor);
                     doc.text(`${healthScore}% Healthy - ${healthText}`, 95, y + 10);
@@ -560,24 +820,14 @@
                     doc.setFontSize(10);
                     doc.text(`${totalPlants} plants documented | ${nativePercent}% Idaho native | ${criticalCount} critical issues`, 25, y + 20);
                     
-                    // Quick insight
-                    let insight = '';
-                    if (criticalCount > 0) {
-                        insight = `Immediate attention needed for ${criticalCount} plant(s). Professional assessment recommended.`;
-                    } else if (highCount > 0) {
-                        insight = `${highCount} items need attention this season. Most can be addressed with routine care.`;
-                    } else {
-                        insight = 'Your landscape is in good condition. Continue with routine maintenance.';
-                    }
+                    let insight = criticalCount > 0 ? `Immediate attention needed for ${criticalCount} plant(s). Professional assessment recommended.` : highCount > 0 ? `${highCount} items need attention this season. Most can be addressed with routine care.` : 'Your landscape is in good condition. Continue with routine maintenance.';
                     doc.text(insight, 25, y + 28);
-                    
                     y += 45;
                     
                     // =====================
-                    // IMMEDIATE ATTENTION (if critical issues exist)
+                    // CRITICAL ISSUES
                     // =====================
                     const criticalPlants = plants.filter(p => p.priority.level === 'CRITICAL');
-                    
                     if (criticalPlants.length > 0) {
                         doc.setFillColor(254, 242, 242);
                         doc.setDrawColor(220, 38, 38);
@@ -591,7 +841,6 @@
                         
                         doc.setFontSize(10);
                         doc.setFont(undefined, 'normal');
-                        
                         criticalPlants.forEach(plant => {
                             doc.setTextColor(0, 0, 0);
                             doc.setFont(undefined, 'bold');
@@ -599,7 +848,6 @@
                             doc.setFont(undefined, 'normal');
                             doc.setTextColor(100, 100, 100);
                             doc.text(`${plant.location} - ${plant.condition}`, 85, y + 5);
-                            
                             if (plant.replacement) {
                                 y += 5;
                                 doc.setTextColor(22, 101, 52);
@@ -609,6 +857,49 @@
                         });
                         y += 8;
                     }
+                    
+                    // =====================
+                    // QUICK CARE REFERENCE (GENUS-BASED)
+                    // =====================
+                    if (y > 180) { doc.addPage(); y = 20; }
+                    
+                    doc.setFontSize(14);
+                    doc.setTextColor(22, 101, 52);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Quick Care Reference', 20, y);
+                    y += 8;
+                    
+                    doc.setFontSize(9);
+                    doc.setTextColor(100, 100, 100);
+                    doc.setFont(undefined, 'italic');
+                    doc.text('Care tips for your documented plants (detailed calendar on last pages)', 20, y);
+                    y += 8;
+                    
+                    Object.keys(plantsByGenus).forEach(key => {
+                        if (y > 260) { doc.addPage(); y = 20; }
+                        
+                        const groupPlants = plantsByGenus[key];
+                        const care = GENUS_CARE[key] || TYPE_CARE[key];
+                        const displayName = care ? (care.commonName || key) : key;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(22, 101, 52);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(`${displayName} (${groupPlants.length})`, 20, y);
+                        
+                        if (care && care.quick) {
+                            y += 5;
+                            doc.setTextColor(60, 60, 60);
+                            doc.setFont(undefined, 'normal');
+                            const quickLines = doc.splitTextToSize(care.quick, 165);
+                            quickLines.forEach(line => {
+                                if (y > 275) { doc.addPage(); y = 20; }
+                                doc.text(line, 25, y);
+                                y += 4;
+                            });
+                        }
+                        y += 6;
+                    });
                     
                     // =====================
                     // TASK BREAKDOWN
@@ -626,17 +917,14 @@
                         doc.setFillColor(240, 253, 244);
                         doc.setDrawColor(22, 163, 74);
                         const diyHeight = 12 + (diyTasks.length * 8);
-                        doc.roundedRect(20, y, 170, diyHeight, 3, 3, 'FD');
+                        doc.roundedRect(20, y, 170, Math.min(diyHeight, 60), 3, 3, 'FD');
                         
                         doc.setFontSize(11);
                         doc.setTextColor(22, 101, 52);
                         doc.setFont(undefined, 'bold');
                         doc.text('YOU CAN HANDLE', 25, y + 8);
                         
-                        const totalDiyTime = diyTasks.reduce((acc, t) => {
-                            const match = t.time ? t.time.match(/(\d+)/) : null;
-                            return acc + (match ? parseInt(match[1]) : 30);
-                        }, 0);
+                        const totalDiyTime = diyTasks.reduce((acc, t) => { const match = t.time ? t.time.match(/(\d+)/) : null; return acc + (match ? parseInt(match[1]) : 30); }, 0);
                         doc.setFont(undefined, 'normal');
                         doc.setTextColor(100, 100, 100);
                         doc.text(`Est. ${Math.round(totalDiyTime / 60)}-${Math.round(totalDiyTime / 60) + 1} hours total`, 130, y + 8);
@@ -644,12 +932,15 @@
                         y += 14;
                         doc.setFontSize(9);
                         doc.setTextColor(0, 0, 0);
-                        
-                        diyTasks.forEach(task => {
-                            if (y > 275) { doc.addPage(); y = 20; }
+                        diyTasks.slice(0, 6).forEach(task => {
                             doc.text(`- ${task.task} (${task.time || '30 min'})`, 28, y);
                             y += 6;
                         });
+                        if (diyTasks.length > 6) {
+                            doc.setTextColor(100, 100, 100);
+                            doc.text(`  ... and ${diyTasks.length - 6} more tasks`, 28, y);
+                            y += 6;
+                        }
                         y += 8;
                     }
                     
@@ -660,7 +951,7 @@
                         doc.setFillColor(254, 249, 195);
                         doc.setDrawColor(202, 138, 4);
                         const proHeight = 12 + (proTasks.length * 12);
-                        doc.roundedRect(20, y, 170, proHeight, 3, 3, 'FD');
+                        doc.roundedRect(20, y, 170, Math.min(proHeight, 70), 3, 3, 'FD');
                         
                         doc.setFontSize(11);
                         doc.setTextColor(161, 98, 7);
@@ -670,8 +961,7 @@
                         
                         doc.setFontSize(9);
                         doc.setFont(undefined, 'normal');
-                        
-                        proTasks.forEach(task => {
+                        proTasks.slice(0, 4).forEach(task => {
                             if (y > 275) { doc.addPage(); y = 20; }
                             doc.setTextColor(0, 0, 0);
                             doc.text(`- ${task.task}`, 28, y);
@@ -683,98 +973,43 @@
                         y += 8;
                     }
                     
-                    // Routine maintenance note
-                    if (routineTasks.length > 0) {
-                        if (y > 250) { doc.addPage(); y = 20; }
-                        
-                        doc.setFontSize(10);
-                        doc.setTextColor(100, 100, 100);
-                        doc.setFont(undefined, 'italic');
-                        doc.text(`${routineTasks.length} healthy plant(s) require only routine seasonal maintenance.`, 20, y);
-                        y += 12;
-                    }
-                    
-                    // =====================
-                    // NATIVE PLANT ANALYSIS
-                    // =====================
-                    if (y > 220) { doc.addPage(); y = 20; }
-                    
-                    doc.setFontSize(14);
-                    doc.setTextColor(22, 101, 52);
-                    doc.setFont(undefined, 'bold');
-                    doc.text('Native Plant Analysis', 20, y);
-                    y += 10;
-                    
-                    // Draw bar
-                    const barWidth = 170;
-                    const barHeight = 10;
-                    doc.setFillColor(229, 231, 235);
-                    doc.roundedRect(20, y, barWidth, barHeight, 2, 2, 'F');
-                    
-                    const filledWidth = (nativePercent / 100) * barWidth;
-                    if (nativePercent >= 40) doc.setFillColor(22, 163, 74);
-                    else if (nativePercent >= 20) doc.setFillColor(202, 138, 4);
-                    else doc.setFillColor(234, 88, 12);
-                    doc.roundedRect(20, y, filledWidth, barHeight, 2, 2, 'F');
-                    
-                    doc.setFontSize(10);
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFont(undefined, 'bold');
-                    if (filledWidth > 30) doc.text(`${nativePercent}%`, 25, y + 7);
-                    
-                    y += 15;
-                    doc.setTextColor(100, 100, 100);
-                    doc.setFont(undefined, 'normal');
-                    doc.text(`${nativeCount} native plants | ${totalPlants - nativeCount} adapted species | Treasure Valley avg: 15-20%`, 20, y);
-                    y += 12;
-                    
                     // =====================
                     // OBSERVATIONS
                     // =====================
-                    if (overallNotes) {
+                    if (overallNotes || priorities) {
                         if (y > 230) { doc.addPage(); y = 20; }
                         
-                        doc.setFontSize(14);
-                        doc.setTextColor(22, 101, 52);
-                        doc.setFont(undefined, 'bold');
-                        doc.text('Field Observations', 20, y);
-                        y += 8;
+                        if (overallNotes) {
+                            doc.setFontSize(14);
+                            doc.setTextColor(22, 101, 52);
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Field Observations', 20, y);
+                            y += 8;
+                            doc.setFontSize(10);
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont(undefined, 'normal');
+                            const obsLines = doc.splitTextToSize(overallNotes, 170);
+                            obsLines.forEach(line => { if (y > 275) { doc.addPage(); y = 20; } doc.text(line, 20, y); y += 5; });
+                            y += 8;
+                        }
                         
-                        doc.setFontSize(10);
-                        doc.setTextColor(0, 0, 0);
-                        doc.setFont(undefined, 'normal');
-                        const obsLines = doc.splitTextToSize(overallNotes, 170);
-                        obsLines.forEach(line => {
-                            if (y > 275) { doc.addPage(); y = 20; }
-                            doc.text(line, 20, y);
-                            y += 5;
-                        });
-                        y += 8;
-                    }
-                    
-                    if (priorities) {
-                        if (y > 230) { doc.addPage(); y = 20; }
-                        
-                        doc.setFontSize(14);
-                        doc.setTextColor(22, 101, 52);
-                        doc.setFont(undefined, 'bold');
-                        doc.text('Priority Recommendations', 20, y);
-                        y += 8;
-                        
-                        doc.setFontSize(10);
-                        doc.setTextColor(0, 0, 0);
-                        doc.setFont(undefined, 'normal');
-                        const priLines = doc.splitTextToSize(priorities, 170);
-                        priLines.forEach(line => {
-                            if (y > 275) { doc.addPage(); y = 20; }
-                            doc.text(line, 20, y);
-                            y += 5;
-                        });
-                        y += 8;
+                        if (priorities) {
+                            if (y > 230) { doc.addPage(); y = 20; }
+                            doc.setFontSize(14);
+                            doc.setTextColor(22, 101, 52);
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Priority Recommendations', 20, y);
+                            y += 8;
+                            doc.setFontSize(10);
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont(undefined, 'normal');
+                            const priLines = doc.splitTextToSize(priorities, 170);
+                            priLines.forEach(line => { if (y > 275) { doc.addPage(); y = 20; } doc.text(line, 20, y); y += 5; });
+                        }
                     }
                     
                     // =====================
-                    // DETAILED PLANT INVENTORY
+                    // PLANT INVENTORY
                     // =====================
                     doc.addPage();
                     y = 20;
@@ -785,21 +1020,14 @@
                     doc.setTextColor(255, 255, 255);
                     doc.setFont(undefined, 'bold');
                     doc.text('Detailed Plant Inventory', 20, 13);
-                    
                     y = 30;
                     
                     const priorityOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-                    const priorityColors = {
-                        'CRITICAL': [220, 38, 38],
-                        'HIGH': [234, 88, 12],
-                        'MEDIUM': [202, 138, 4],
-                        'LOW': [22, 163, 74]
-                    };
+                    const priorityColors = { 'CRITICAL': [220, 38, 38], 'HIGH': [234, 88, 12], 'MEDIUM': [202, 138, 4], 'LOW': [22, 163, 74] };
                     
                     priorityOrder.forEach(level => {
                         const levelPlants = plants.filter(p => p.priority.level === level);
                         if (levelPlants.length === 0) return;
-                        
                         if (y > 250) { doc.addPage(); y = 20; }
                         
                         doc.setFontSize(12);
@@ -810,32 +1038,17 @@
                         
                         levelPlants.forEach(plant => {
                             if (y > 265) { doc.addPage(); y = 20; }
-                            
                             doc.setFontSize(10);
                             doc.setTextColor(0, 0, 0);
                             doc.setFont(undefined, 'bold');
                             const nativeMarker = plant.native ? ' [Native]' : '';
                             doc.text(`${plant.name}${nativeMarker}`, 25, y);
-                            
                             doc.setFont(undefined, 'normal');
                             doc.setTextColor(100, 100, 100);
                             doc.text(`${plant.location} | ${plant.condition}`, 100, y);
                             y += 5;
-                            
-                            if (plant.replacement) {
-                                doc.setTextColor(22, 101, 52);
-                                doc.text(`Replacement: ${plant.replacement}`, 30, y);
-                                y += 5;
-                            }
-                            
-                            if (plant.notes) {
-                                doc.setTextColor(120, 120, 120);
-                                const noteLines = doc.splitTextToSize(`Notes: ${plant.notes}`, 155);
-                                noteLines.forEach(line => {
-                                    doc.text(line, 30, y);
-                                    y += 4;
-                                });
-                            }
+                            if (plant.replacement) { doc.setTextColor(22, 101, 52); doc.text(`Replacement: ${plant.replacement}`, 30, y); y += 5; }
+                            if (plant.notes) { doc.setTextColor(120, 120, 120); const noteLines = doc.splitTextToSize(`Notes: ${plant.notes}`, 155); noteLines.forEach(line => { doc.text(line, 30, y); y += 4; }); }
                             y += 4;
                         });
                         y += 5;
@@ -846,36 +1059,21 @@
                     // =====================
                     if (photos.length > 0) {
                         doc.addPage();
-                        
                         doc.setFillColor(22, 163, 74);
                         doc.rect(0, 0, 210, 20, 'F');
                         doc.setFontSize(14);
                         doc.setTextColor(255, 255, 255);
                         doc.setFont(undefined, 'bold');
                         doc.text('Photo Documentation', 20, 13);
-                        
                         let photoY = 30;
                         
                         for (const photo of photos) {
-                            if (photoY > 160) {
-                                doc.addPage();
-                                photoY = 20;
-                            }
-                            
+                            if (photoY > 160) { doc.addPage(); photoY = 20; }
                             doc.setFontSize(11);
                             doc.setTextColor(22, 101, 52);
                             doc.setFont(undefined, 'bold');
                             doc.text(photo.location, 20, photoY);
                             photoY += 6;
-                            
-                            if (photo.notes) {
-                                doc.setFontSize(9);
-                                doc.setTextColor(100, 100, 100);
-                                doc.setFont(undefined, 'normal');
-                                doc.text(photo.notes, 20, photoY);
-                                photoY += 5;
-                            }
-                            
                             try {
                                 const compressedImg = await compressImage(photo.data, 1200, 0.7);
                                 doc.addImage(compressedImg, 'JPEG', 20, photoY, 170, 110);
@@ -889,7 +1087,176 @@
                     }
                     
                     // =====================
-                    // FOOTER ON LAST PAGE
+                    // CARE CALENDAR APPENDIX
+                    // =====================
+                    doc.addPage();
+                    
+                    doc.setFillColor(22, 101, 52);
+                    doc.rect(0, 0, 210, 25, 'F');
+                    doc.setFontSize(18);
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('SEASONAL CARE CALENDAR', 105, 16, { align: 'center' });
+                    
+                    y = 35;
+                    doc.setFontSize(9);
+                    doc.setTextColor(100, 100, 100);
+                    doc.setFont(undefined, 'italic');
+                    doc.text('Detailed care instructions for your documented plants, organized by season', 20, y);
+                    y += 10;
+                    
+                    // For each season
+                    Object.keys(SEASONAL_TASKS).forEach(season => {
+                        if (y > 240) { doc.addPage(); y = 20; }
+                        
+                        // Season header
+                        doc.setFillColor(240, 253, 244);
+                        doc.roundedRect(20, y, 170, 10, 2, 2, 'F');
+                        doc.setFontSize(12);
+                        doc.setTextColor(22, 101, 52);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(season, 25, y + 7);
+                        y += 14;
+                        
+                        // Find which genera/types we have for this season
+                        const seasonTasks = SEASONAL_TASKS[season];
+                        let hasTasks = false;
+                        
+                        Object.keys(plantsByGenus).forEach(key => {
+                            const task = seasonTasks[key];
+                            if (task) {
+                                if (y > 275) { doc.addPage(); y = 20; }
+                                hasTasks = true;
+                                const groupPlants = plantsByGenus[key];
+                                const care = GENUS_CARE[key] || TYPE_CARE[key];
+                                const displayName = care ? (care.commonName || key) : key;
+                                
+                                doc.setFontSize(10);
+                                doc.setTextColor(0, 0, 0);
+                                doc.setFont(undefined, 'bold');
+                                doc.text(`${displayName} (${groupPlants.length}):`, 25, y);
+                                
+                                doc.setFont(undefined, 'normal');
+                                doc.setTextColor(60, 60, 60);
+                                const taskLines = doc.splitTextToSize(task, 130);
+                                doc.text(taskLines[0], 75, y);
+                                y += 5;
+                                if (taskLines.length > 1) {
+                                    taskLines.slice(1).forEach(line => { doc.text(line, 75, y); y += 4; });
+                                }
+                                y += 2;
+                            }
+                        });
+                        
+                        if (!hasTasks) {
+                            doc.setFontSize(9);
+                            doc.setTextColor(150, 150, 150);
+                            doc.setFont(undefined, 'italic');
+                            doc.text('No specific tasks for your documented plants this season', 25, y);
+                            y += 5;
+                        }
+                        y += 8;
+                    });
+                    
+                    // =====================
+                    // DETAILED GENUS CARE (if we have specific genera)
+                    // =====================
+                    const documentedGenera = Object.keys(plantsByGenus).filter(k => GENUS_CARE[k]);
+                    
+                    if (documentedGenera.length > 0) {
+                        doc.addPage();
+                        
+                        doc.setFillColor(22, 101, 52);
+                        doc.rect(0, 0, 210, 25, 'F');
+                        doc.setFontSize(18);
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('DETAILED CARE GUIDE', 105, 16, { align: 'center' });
+                        
+                        y = 35;
+                        
+                        documentedGenera.forEach(genus => {
+                            const care = GENUS_CARE[genus];
+                            const groupPlants = plantsByGenus[genus];
+                            
+                            if (y > 200) { doc.addPage(); y = 20; }
+                            
+                            // Genus header
+                            doc.setFillColor(240, 253, 244);
+                            doc.setDrawColor(22, 163, 74);
+                            doc.roundedRect(20, y, 170, 12, 2, 2, 'FD');
+                            doc.setFontSize(12);
+                            doc.setTextColor(22, 101, 52);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`${care.commonName.toUpperCase()} (${genus}) - ${groupPlants.length} documented`, 25, y + 8);
+                            y += 18;
+                            
+                            doc.setFontSize(9);
+                            
+                            // Pruning
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Pruning:', 25, y);
+                            doc.setFont(undefined, 'normal');
+                            doc.setTextColor(60, 60, 60);
+                            const pruneLines = doc.splitTextToSize(`${care.pruning.when}. ${care.pruning.how}`, 140);
+                            pruneLines.forEach((line, i) => { doc.text(line, 50, y + (i * 4)); });
+                            y += pruneLines.length * 4 + 3;
+                            
+                            // Watering
+                            if (y > 270) { doc.addPage(); y = 20; }
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Watering:', 25, y);
+                            doc.setFont(undefined, 'normal');
+                            doc.setTextColor(60, 60, 60);
+                            const waterLines = doc.splitTextToSize(`${care.watering.frequency}. ${care.watering.method}`, 140);
+                            waterLines.forEach((line, i) => { doc.text(line, 50, y + (i * 4)); });
+                            y += waterLines.length * 4 + 3;
+                            
+                            // Fertilizing
+                            if (care.fertilizing) {
+                                if (y > 270) { doc.addPage(); y = 20; }
+                                doc.setTextColor(0, 0, 0);
+                                doc.setFont(undefined, 'bold');
+                                doc.text('Fertilizing:', 25, y);
+                                doc.setFont(undefined, 'normal');
+                                doc.setTextColor(60, 60, 60);
+                                const fertLines = doc.splitTextToSize(care.fertilizing, 140);
+                                fertLines.forEach((line, i) => { doc.text(line, 50, y + (i * 4)); });
+                                y += fertLines.length * 4 + 3;
+                            }
+                            
+                            // Diseases
+                            if (care.diseases && care.diseases.length > 0) {
+                                if (y > 270) { doc.addPage(); y = 20; }
+                                doc.setTextColor(0, 0, 0);
+                                doc.setFont(undefined, 'bold');
+                                doc.text('Watch for:', 25, y);
+                                doc.setFont(undefined, 'normal');
+                                doc.setTextColor(180, 80, 80);
+                                doc.text(care.diseases.join(', '), 50, y);
+                                y += 7;
+                            }
+                            
+                            // Idaho notes
+                            if (care.idahoNotes) {
+                                if (y > 270) { doc.addPage(); y = 20; }
+                                doc.setTextColor(22, 101, 52);
+                                doc.setFont(undefined, 'bold');
+                                doc.text('Idaho Tip:', 25, y);
+                                doc.setFont(undefined, 'normal');
+                                const idahoLines = doc.splitTextToSize(care.idahoNotes, 140);
+                                idahoLines.forEach((line, i) => { doc.text(line, 50, y + (i * 4)); });
+                                y += idahoLines.length * 4;
+                            }
+                            
+                            y += 12;
+                        });
+                    }
+                    
+                    // =====================
+                    // FOOTER
                     // =====================
                     const pageCount = doc.internal.getNumberOfPages();
                     for (let i = 1; i <= pageCount; i++) {
@@ -906,26 +1273,21 @@
                     if (navigator.share && navigator.canShare) {
                         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
                         if (navigator.canShare({ files: [file] })) {
-                            try {
-                                await navigator.share({ files: [file] });
-                                setIsGenerating(false);
-                                return;
-                            } catch (err) {
-                                if (err.name !== 'AbortError') console.log('Share failed:', err);
-                            }
+                            try { await navigator.share({ files: [file] }); setIsGenerating(false); return; }
+                            catch (err) { if (err.name !== 'AbortError') console.log('Share failed:', err); }
                         }
                     }
-                    
                     doc.save(fileName);
                     setIsGenerating(false);
-                    
                 } catch (err) {
                     setIsGenerating(false);
                     alert('Error generating PDF: ' + err.message);
                 }
             };
 
-            // CLIENT INFO STEP
+            // =====================
+            // UI RENDERING
+            // =====================
             if (step === 'client') {
                 return h('div', { className: 'min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-6' }, [
                     h('div', { key: 'card', className: 'bg-white rounded-2xl shadow-xl p-8 max-w-md w-full' }, [
@@ -933,37 +1295,15 @@
                             h('div', { key: 'icon', className: 'text-6xl mb-4' }, '🌳'),
                             h('h1', { key: 'title', className: 'text-3xl font-bold text-gray-800' }, 'Property Assessment'),
                             h('p', { key: 'subtitle', className: 'text-gray-500 mt-2' }, 'Professional landscaping evaluation'),
-                            h('p', { key: 'version', className: 'text-xs text-green-600 mt-2 font-semibold' }, 'v4.8 - Professional Reports')
+                            h('p', { key: 'version', className: 'text-xs text-green-600 mt-2 font-semibold' }, 'v4.9 - Genus Care + Care Calendar')
                         ]),
                         h('div', { key: 'form', className: 'space-y-4' }, [
-                            h('div', { key: 'name' }, [
-                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Client Name *'),
-                                h('input', { type: 'text', value: clientInfo.name, onChange: e => setClientInfo({ ...clientInfo, name: e.target.value }), className: 'w-full p-3 border rounded-lg', placeholder: 'John Smith' })
-                            ]),
-                            h('div', { key: 'phone' }, [
-                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Phone'),
-                                h('input', { type: 'tel', value: clientInfo.phone, onChange: e => setClientInfo({ ...clientInfo, phone: e.target.value }), className: 'w-full p-3 border rounded-lg', placeholder: '(208) 555-1234' })
-                            ]),
-                            h('div', { key: 'address' }, [
-                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Street Address *'),
-                                h('input', { type: 'text', value: clientInfo.address, onChange: e => setClientInfo({ ...clientInfo, address: e.target.value }), className: 'w-full p-3 border rounded-lg', placeholder: '123 Main Street' })
-                            ]),
+                            h('div', { key: 'name' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Client Name *'), h('input', { type: 'text', value: clientInfo.name, onChange: e => setClientInfo({ ...clientInfo, name: e.target.value }), className: 'w-full p-3 border rounded-lg', placeholder: 'John Smith' }) ]),
+                            h('div', { key: 'phone' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Phone'), h('input', { type: 'tel', value: clientInfo.phone, onChange: e => setClientInfo({ ...clientInfo, phone: e.target.value }), className: 'w-full p-3 border rounded-lg', placeholder: '(208) 555-1234' }) ]),
+                            h('div', { key: 'address' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Street Address *'), h('input', { type: 'text', value: clientInfo.address, onChange: e => setClientInfo({ ...clientInfo, address: e.target.value }), className: 'w-full p-3 border rounded-lg', placeholder: '123 Main Street' }) ]),
                             h('div', { key: 'cityzone', className: 'grid grid-cols-2 gap-4' }, [
-                                h('div', { key: 'city' }, [
-                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'City'),
-                                    h('select', { value: clientInfo.city, onChange: e => setClientInfo({ ...clientInfo, city: e.target.value }), className: 'w-full p-3 border rounded-lg' },
-                                        ['Boise', 'Meridian', 'Eagle', 'Nampa', 'Caldwell', 'Garden City', 'Kuna', 'Star', 'Middleton'].map(city => h('option', { key: city, value: city }, city))
-                                    )
-                                ]),
-                                h('div', { key: 'zone' }, [
-                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'Zone'),
-                                    h('select', { value: clientInfo.zone, onChange: e => setClientInfo({ ...clientInfo, zone: e.target.value }), className: 'w-full p-3 border rounded-lg' }, [
-                                        h('option', { key: '5a', value: '5a' }, '5a (-20F)'),
-                                        h('option', { key: '5b', value: '5b' }, '5b (-15F)'),
-                                        h('option', { key: '6a', value: '6a' }, '6a (-10F)'),
-                                        h('option', { key: '6b', value: '6b' }, '6b (-5F)')
-                                    ])
-                                ])
+                                h('div', { key: 'city' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'City'), h('select', { value: clientInfo.city, onChange: e => setClientInfo({ ...clientInfo, city: e.target.value }), className: 'w-full p-3 border rounded-lg' }, ['Boise', 'Meridian', 'Eagle', 'Nampa', 'Caldwell', 'Garden City', 'Kuna', 'Star', 'Middleton'].map(city => h('option', { key: city, value: city }, city))) ]),
+                                h('div', { key: 'zone' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Zone'), h('select', { value: clientInfo.zone, onChange: e => setClientInfo({ ...clientInfo, zone: e.target.value }), className: 'w-full p-3 border rounded-lg' }, [ h('option', { key: '5a', value: '5a' }, '5a (-20F)'), h('option', { key: '5b', value: '5b' }, '5b (-15F)'), h('option', { key: '6a', value: '6a' }, '6a (-10F)'), h('option', { key: '6b', value: '6b' }, '6b (-5F)') ]) ])
                             ]),
                             h('button', { key: 'submit', onClick: () => setStep('assessment'), disabled: !clientInfo.name || !clientInfo.address, className: 'w-full bg-green-600 text-white py-4 rounded-lg font-semibold mt-6 hover:bg-green-700 disabled:bg-gray-300' }, 'Start Assessment')
                         ])
@@ -972,121 +1312,72 @@
             }
 
             // ASSESSMENT STEP
-            if (step === 'assessment') {
-                const currentReplacement = (() => {
-                    const plantData = PLANTS[newPlant.name] || {};
-                    return getReplacementSuggestion(newPlant.name, plantData.type, newPlant.condition);
-                })();
-                
-                return h('div', { className: 'min-h-screen bg-gray-50 pb-8' }, [
-                    h('div', { key: 'header', className: 'bg-gradient-to-r from-green-600 to-green-700 text-white p-4 shadow-lg' }, [
-                        h('div', { key: 'info', className: 'max-w-4xl mx-auto' }, [
-                            h('h2', { key: 'name', className: 'font-bold text-lg' }, clientInfo.name),
-                            h('p', { key: 'address', className: 'text-green-100 text-sm' }, `${clientInfo.address}, ${clientInfo.city}`)
-                        ])
-                    ]),
-                    
-                    h('div', { key: 'photos', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mt-6 mx-4' }, [
-                        h('h3', { className: 'text-xl font-bold mb-4 flex items-center gap-2' }, [h(Camera, { key: 'icon', size: 24 }), h('span', { key: 'text' }, 'Photos')]),
-                        h('input', { type: 'file', accept: 'image/*', capture: 'environment', onChange: handlePhotoUpload, ref: fileInputRef, className: 'hidden' }),
-                        h('button', { onClick: () => fileInputRef.current?.click(), className: 'w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2' }, [h(Camera, { key: 'icon' }), h('span', { key: 'text' }, `Take Photo (${photos.length})`)]),
-                        photos.length > 0 && h('div', { key: 'preview', className: 'mt-4 grid grid-cols-3 gap-2' },
-                            photos.map(photo => h('div', { key: photo.id, className: 'relative' }, [
-                                h('img', { src: photo.data, className: 'w-full h-20 object-cover rounded', alt: photo.location }),
-                                h('span', { className: 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate' }, photo.location)
-                            ]))
-                        )
-                    ]),
-                    
-                    h('div', { key: 'entry', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mt-6 mx-4' }, [
-                        h('h3', { className: 'text-xl font-bold mb-4' }, 'Add Plant'),
-                        h('div', { className: 'space-y-4' }, [
-                            h('div', { key: 'plant-select' }, [
-                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Plant Name'),
-                                h('select', { value: newPlant.name, onChange: e => { const name = e.target.value; const plantData = PLANTS[name] || {}; const replacement = getReplacementSuggestion(name, plantData.type, newPlant.condition); setNewPlant({ ...newPlant, name, replacement: replacement ? replacement.primary : null }); }, className: 'w-full p-3 border rounded-lg' }, [
-                                    h('option', { key: '', value: '' }, '-- Select Plant --'),
-                                    ...Object.keys(PLANTS).sort().map(name => h('option', { key: name, value: name }, `${name}${PLANTS[name].native ? ' *' : ''}`))
-                                ])
-                            ]),
-                            h('div', { key: 'location-cond', className: 'grid grid-cols-2 gap-4' }, [
-                                h('div', { key: 'loc' }, [
-                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'Location'),
-                                    h('select', { value: newPlant.location, onChange: e => setNewPlant({ ...newPlant, location: e.target.value }), className: 'w-full p-3 border rounded-lg' }, LOCATIONS.map(loc => h('option', { key: loc, value: loc }, loc)))
-                                ]),
-                                h('div', { key: 'cond' }, [
-                                    h('label', { className: 'block text-sm font-semibold mb-2' }, 'Condition'),
-                                    h('select', { value: newPlant.condition, onChange: e => handleConditionChange(e.target.value), className: 'w-full p-3 border rounded-lg' }, CONDITIONS.map(cond => h('option', { key: cond, value: cond }, cond)))
-                                ])
-                            ]),
-                            h('div', { key: 'priority', className: 'p-3 rounded-lg text-sm', style: { backgroundColor: newPlant.priority.color + '20', borderLeft: `4px solid ${newPlant.priority.color}` } }, [
-                                h('span', { key: 'badge', className: 'font-bold', style: { color: newPlant.priority.color } }, newPlant.priority.level),
-                                h('span', { key: 'timeline', className: 'text-gray-600 ml-2' }, `| ${newPlant.priority.timeline}`)
-                            ]),
-                            currentReplacement && h('div', { key: 'replacement', className: 'p-4 rounded-lg bg-green-50 border-2 border-green-600' }, [
-                                h('div', { key: 'header', className: 'flex items-center gap-2 mb-3' }, [
-                                    h(AlertCircle, { key: 'icon', size: 20 }),
-                                    h('span', { key: 'title', className: 'font-bold text-green-800' }, 'Replacement Recommendation')
-                                ]),
-                                h('div', { key: 'primary', className: 'mb-3' }, [
-                                    h('div', { key: 'value', className: 'font-semibold text-green-700 text-lg' }, currentReplacement.primary),
-                                    h('div', { key: 'reason', className: 'text-sm text-gray-600 mt-1' }, currentReplacement.reason)
-                                ]),
-                                h('div', { key: 'alternatives' }, [
-                                    h('select', { key: 'select', value: newPlant.customReplacement || currentReplacement.primary, onChange: e => setNewPlant({ ...newPlant, customReplacement: e.target.value }), className: 'w-full p-2 border rounded mt-1' }, [
-                                        h('option', { key: 'primary', value: currentReplacement.primary }, `${currentReplacement.primary} (Recommended)`),
-                                        ...currentReplacement.alternatives.map(alt => h('option', { key: alt, value: alt }, alt))
-                                    ])
-                                ])
-                            ]),
-                            h('div', { key: 'notes' }, [
-                                h('label', { className: 'block text-sm font-semibold mb-2' }, 'Notes'),
-                                h('textarea', { value: newPlant.notes || '', onChange: e => setNewPlant({ ...newPlant, notes: e.target.value }), className: 'w-full p-3 border rounded-lg', rows: 2, placeholder: 'Observations...' })
-                            ]),
-                            h('button', { onClick: addPlant, disabled: !newPlant.name, className: 'w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center gap-2' }, [h(Plus, { key: 'icon' }), h('span', { key: 'text' }, 'Add Plant')])
-                        ]),
-                        
-                        plants.length > 0 && h('div', { key: 'stats', className: 'mt-6 p-4 bg-green-50 border-2 border-green-600 rounded-lg' }, [
-                            h('div', { key: 'header', className: 'flex items-center justify-between' }, [
-                                h('span', { key: 'label', className: 'text-sm font-semibold text-green-900' }, 'Assessment Progress'),
-                                h('span', { key: 'count', className: 'text-2xl font-bold text-green-600' }, `${plants.length} plants`)
-                            ]),
-                            h('div', { key: 'breakdown', className: 'text-sm text-green-700 mt-2' },
-                                `${plants.filter(p => p.native).length} native | ${plants.filter(p => p.priority.level === 'CRITICAL').length} critical | ${plants.filter(p => p.priority.level === 'LOW').length} healthy`
-                            )
-                        ]),
-                        
-                        plants.length > 0 && h('div', { key: 'list', className: 'mt-4 space-y-3' },
-                            plants.map(plant => h('div', { key: plant.id, className: 'p-4 border rounded-lg bg-gray-50', style: { borderLeft: `4px solid ${plant.priority.color}` } }, [
-                                h('div', { key: 'header', className: 'flex justify-between items-start' }, [
-                                    h('div', { key: 'name', className: 'font-semibold text-lg flex items-center gap-2 flex-wrap' }, [
-                                        h('span', { key: 'text' }, plant.name),
-                                        plant.native && h('span', { key: 'native', className: 'text-xs bg-green-600 text-white px-2 py-1 rounded' }, 'Native'),
-                                        h('span', { key: 'priority', className: 'text-xs text-white px-2 py-1 rounded', style: { backgroundColor: plant.priority.color } }, plant.priority.level)
-                                    ]),
-                                    h('div', { key: 'loc', className: 'text-xs text-gray-500' }, plant.location)
-                                ]),
-                                h('div', { key: 'details', className: 'text-sm text-gray-600 mt-2' }, `${plant.condition} | ${plant.type || 'Unknown type'}`),
-                                plant.replacement && h('div', { key: 'replacement', className: 'text-sm text-green-700 mt-2 font-semibold' }, `Replace with: ${plant.replacement}`),
-                                plant.notes && h('div', { key: 'notes', className: 'text-sm text-gray-500 mt-1 italic' }, plant.notes)
-                            ]))
-                        )
-                    ]),
-                    
-                    h('div', { key: 'observations', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mt-6 mx-4' }, [
-                        h('h3', { className: 'text-xl font-bold mb-4' }, 'Observations'),
-                        h('textarea', { value: overallNotes, onChange: e => setOverallNotes(e.target.value), className: 'w-full p-3 border rounded-lg', rows: 3, placeholder: 'Overall landscape observations...' }),
-                        h('h3', { className: 'text-xl font-bold mt-4 mb-4' }, 'Recommendations'),
-                        h('textarea', { value: priorities, onChange: e => setPriorities(e.target.value), className: 'w-full p-3 border rounded-lg', rows: 3, placeholder: 'Priority recommendations...' })
-                    ]),
-                    
-                    h('div', { key: 'actions', className: 'max-w-4xl mx-auto flex gap-4 mt-6 mx-4' }, [
-                        h('button', { key: 'back', onClick: () => setStep('client'), className: 'flex-1 bg-gray-500 text-white py-4 rounded-lg font-semibold hover:bg-gray-600' }, 'Back'),
-                        h('button', { key: 'report', onClick: exportPDF, disabled: plants.length === 0 || isGenerating, className: 'flex-1 bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center gap-2' },
-                            isGenerating ? h('span', { key: 'loading' }, 'Generating...') : [h(Share, { key: 'icon' }), h('span', { key: 'text' }, 'Generate Report')]
-                        )
+            const currentReplacement = (() => { const plantData = PLANTS[newPlant.name] || {}; return getReplacementSuggestion(newPlant.name, plantData.type, newPlant.condition); })();
+            
+            return h('div', { className: 'min-h-screen bg-gray-50 pb-8' }, [
+                h('div', { key: 'header', className: 'bg-gradient-to-r from-green-600 to-green-700 text-white p-4 shadow-lg' }, [
+                    h('div', { key: 'info', className: 'max-w-4xl mx-auto' }, [
+                        h('h2', { key: 'name', className: 'font-bold text-lg' }, clientInfo.name),
+                        h('p', { key: 'address', className: 'text-green-100 text-sm' }, `${clientInfo.address}, ${clientInfo.city}`)
                     ])
-                ]);
-            }
+                ]),
+                
+                h('div', { key: 'photos', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mt-6 mx-4' }, [
+                    h('h3', { className: 'text-xl font-bold mb-4 flex items-center gap-2' }, [h(Camera, { key: 'icon', size: 24 }), h('span', { key: 'text' }, 'Photos')]),
+                    h('input', { type: 'file', accept: 'image/*', capture: 'environment', onChange: handlePhotoUpload, ref: fileInputRef, className: 'hidden' }),
+                    h('button', { onClick: () => fileInputRef.current?.click(), className: 'w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2' }, [h(Camera, { key: 'icon' }), h('span', { key: 'text' }, `Take Photo (${photos.length})`)]),
+                    photos.length > 0 && h('div', { key: 'preview', className: 'mt-4 grid grid-cols-3 gap-2' }, photos.map(photo => h('div', { key: photo.id, className: 'relative' }, [ h('img', { src: photo.data, className: 'w-full h-20 object-cover rounded', alt: photo.location }), h('span', { className: 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate' }, photo.location) ])))
+                ]),
+                
+                h('div', { key: 'entry', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mt-6 mx-4' }, [
+                    h('h3', { className: 'text-xl font-bold mb-4' }, 'Add Plant'),
+                    h('div', { className: 'space-y-4' }, [
+                        h('div', { key: 'plant-select' }, [
+                            h('label', { className: 'block text-sm font-semibold mb-2' }, 'Plant Name'),
+                            h('select', { value: newPlant.name, onChange: e => { const name = e.target.value; const plantData = PLANTS[name] || {}; const replacement = getReplacementSuggestion(name, plantData.type, newPlant.condition); setNewPlant({ ...newPlant, name, replacement: replacement ? replacement.primary : null }); }, className: 'w-full p-3 border rounded-lg' }, [ h('option', { key: '', value: '' }, '-- Select Plant --'), ...Object.keys(PLANTS).sort().map(name => h('option', { key: name, value: name }, `${name}${PLANTS[name].native ? ' *' : ''}`)) ])
+                        ]),
+                        h('div', { key: 'location-cond', className: 'grid grid-cols-2 gap-4' }, [
+                            h('div', { key: 'loc' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Location'), h('select', { value: newPlant.location, onChange: e => setNewPlant({ ...newPlant, location: e.target.value }), className: 'w-full p-3 border rounded-lg' }, LOCATIONS.map(loc => h('option', { key: loc, value: loc }, loc))) ]),
+                            h('div', { key: 'cond' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Condition'), h('select', { value: newPlant.condition, onChange: e => handleConditionChange(e.target.value), className: 'w-full p-3 border rounded-lg' }, CONDITIONS.map(cond => h('option', { key: cond, value: cond }, cond))) ])
+                        ]),
+                        h('div', { key: 'priority', className: 'p-3 rounded-lg text-sm', style: { backgroundColor: newPlant.priority.color + '20', borderLeft: `4px solid ${newPlant.priority.color}` } }, [ h('span', { key: 'badge', className: 'font-bold', style: { color: newPlant.priority.color } }, newPlant.priority.level), h('span', { key: 'timeline', className: 'text-gray-600 ml-2' }, `| ${newPlant.priority.timeline}`) ]),
+                        currentReplacement && h('div', { key: 'replacement', className: 'p-4 rounded-lg bg-green-50 border-2 border-green-600' }, [
+                            h('div', { key: 'header', className: 'flex items-center gap-2 mb-3' }, [ h(AlertCircle, { key: 'icon', size: 20 }), h('span', { key: 'title', className: 'font-bold text-green-800' }, 'Replacement Recommendation') ]),
+                            h('div', { key: 'primary', className: 'mb-3' }, [ h('div', { key: 'value', className: 'font-semibold text-green-700 text-lg' }, currentReplacement.primary), h('div', { key: 'reason', className: 'text-sm text-gray-600 mt-1' }, currentReplacement.reason) ]),
+                            h('div', { key: 'alternatives' }, [ h('select', { key: 'select', value: newPlant.customReplacement || currentReplacement.primary, onChange: e => setNewPlant({ ...newPlant, customReplacement: e.target.value }), className: 'w-full p-2 border rounded mt-1' }, [ h('option', { key: 'primary', value: currentReplacement.primary }, `${currentReplacement.primary} (Recommended)`), ...currentReplacement.alternatives.map(alt => h('option', { key: alt, value: alt }, alt)) ]) ])
+                        ]),
+                        h('div', { key: 'notes' }, [ h('label', { className: 'block text-sm font-semibold mb-2' }, 'Notes'), h('textarea', { value: newPlant.notes || '', onChange: e => setNewPlant({ ...newPlant, notes: e.target.value }), className: 'w-full p-3 border rounded-lg', rows: 2, placeholder: 'Observations...' }) ]),
+                        h('button', { onClick: addPlant, disabled: !newPlant.name, className: 'w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center gap-2' }, [h(Plus, { key: 'icon' }), h('span', { key: 'text' }, 'Add Plant')])
+                    ]),
+                    
+                    plants.length > 0 && h('div', { key: 'stats', className: 'mt-6 p-4 bg-green-50 border-2 border-green-600 rounded-lg' }, [
+                        h('div', { key: 'header', className: 'flex items-center justify-between' }, [ h('span', { key: 'label', className: 'text-sm font-semibold text-green-900' }, 'Assessment Progress'), h('span', { key: 'count', className: 'text-2xl font-bold text-green-600' }, `${plants.length} plants`) ]),
+                        h('div', { key: 'breakdown', className: 'text-sm text-green-700 mt-2' }, `${plants.filter(p => p.native).length} native | ${plants.filter(p => p.priority.level === 'CRITICAL').length} critical | ${plants.filter(p => p.priority.level === 'LOW').length} healthy`)
+                    ]),
+                    
+                    plants.length > 0 && h('div', { key: 'list', className: 'mt-4 space-y-3' }, plants.map(plant => h('div', { key: plant.id, className: 'p-4 border rounded-lg bg-gray-50', style: { borderLeft: `4px solid ${plant.priority.color}` } }, [
+                        h('div', { key: 'header', className: 'flex justify-between items-start' }, [
+                            h('div', { key: 'name', className: 'font-semibold text-lg flex items-center gap-2 flex-wrap' }, [ h('span', { key: 'text' }, plant.name), plant.native && h('span', { key: 'native', className: 'text-xs bg-green-600 text-white px-2 py-1 rounded' }, 'Native'), h('span', { key: 'priority', className: 'text-xs text-white px-2 py-1 rounded', style: { backgroundColor: plant.priority.color } }, plant.priority.level) ]),
+                            h('div', { key: 'loc', className: 'text-xs text-gray-500' }, plant.location)
+                        ]),
+                        h('div', { key: 'details', className: 'text-sm text-gray-600 mt-2' }, `${plant.condition} | ${plant.type || 'Unknown type'}`),
+                        plant.replacement && h('div', { key: 'replacement', className: 'text-sm text-green-700 mt-2 font-semibold' }, `Replace with: ${plant.replacement}`),
+                        plant.notes && h('div', { key: 'notes', className: 'text-sm text-gray-500 mt-1 italic' }, plant.notes)
+                    ])))
+                ]),
+                
+                h('div', { key: 'observations', className: 'max-w-4xl mx-auto bg-white rounded-lg shadow p-6 mt-6 mx-4' }, [
+                    h('h3', { className: 'text-xl font-bold mb-4' }, 'Observations'),
+                    h('textarea', { value: overallNotes, onChange: e => setOverallNotes(e.target.value), className: 'w-full p-3 border rounded-lg', rows: 3, placeholder: 'Overall landscape observations...' }),
+                    h('h3', { className: 'text-xl font-bold mt-4 mb-4' }, 'Recommendations'),
+                    h('textarea', { value: priorities, onChange: e => setPriorities(e.target.value), className: 'w-full p-3 border rounded-lg', rows: 3, placeholder: 'Priority recommendations...' })
+                ]),
+                
+                h('div', { key: 'actions', className: 'max-w-4xl mx-auto flex gap-4 mt-6 mx-4' }, [
+                    h('button', { key: 'back', onClick: () => setStep('client'), className: 'flex-1 bg-gray-500 text-white py-4 rounded-lg font-semibold hover:bg-gray-600' }, 'Back'),
+                    h('button', { key: 'report', onClick: exportPDF, disabled: plants.length === 0 || isGenerating, className: 'flex-1 bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center gap-2' }, isGenerating ? h('span', { key: 'loading' }, 'Generating...') : [h(Share, { key: 'icon' }), h('span', { key: 'text' }, 'Generate Report')])
+                ])
+            ]);
         }
 
         ReactDOM.render(React.createElement(App), document.getElementById('root'));
